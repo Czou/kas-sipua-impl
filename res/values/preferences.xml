@@ -1,4 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
+    <!-- SIP Proxy Server -->
+    <string name="preference_sip_proxy_server_address_default"></string> <!-- Mandatory -->
+    <integer name="preference_sip_proxy_server_port_default">-1</integer> <!-- Mandatory -->
+
+    <!-- Local SIP stack -->
+    <integer name="preference_sip_local_port_default">6060</integer>
+    <integer name="preference_sip_reg_expires_default">3600</integer>
+
 </resources>

@@ -109,13 +109,13 @@ public class SipUA extends UA {
 
 	private Map<String, SipRegister> localUris = new ConcurrentHashMap<String, SipRegister>();
 
-	SipPreferences sipPreferences;
+	Preferences sipPreferences;
 
 	public SipUA(Context context) throws KurentoSipException {
 		super(context);
 
 		try {
-			sipPreferences = new SipPreferences(context);
+			sipPreferences = new Preferences(context);
 			sipFactory = SipFactory.getInstance();
 			addressFactory = sipFactory.createAddressFactory();
 			headerFactory = sipFactory.createHeaderFactory();
@@ -151,7 +151,7 @@ public class SipUA extends UA {
 	//
 	// ////////////////
 
-	public SipPreferences getSipPreferences() {
+	public Preferences getSipPreferences() {
 		return sipPreferences;
 	}
 

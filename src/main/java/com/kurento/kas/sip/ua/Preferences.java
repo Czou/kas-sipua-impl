@@ -6,9 +6,11 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 
-public class SipPreferences {
+import com.kurento.kas.sip.R;
 
-	public static final String ONLY_IPV4 = "ONLY_IPV4";
+public class Preferences {
+
+	public static final String SIP_ONLY_IPV4 = "SIP_ONLY_IPV4";
 	public static final String SIP_TRANSPORT = "TRANSPORT";
 
 	public static final String SIP_PROXY_SERVER_ADDRESS = "PROXY_SERVER_ADDRESS"; // Mandatory
@@ -24,23 +26,30 @@ public class SipPreferences {
 	private int proxyServerPort;
 	private int localPort = 6060;
 
-	private int regExpires = 3600;
+	private int regExpires;
 
-	SipPreferences(Context context) throws KurentoSipException {
+	Preferences(Context context) throws KurentoSipException {
 		SharedPreferences pref = PreferenceManager
 				.getDefaultSharedPreferences(context);
 
-		proxyServerAddress = pref.getString(SIP_PROXY_SERVER_ADDRESS, null);
-		if (proxyServerAddress == null)
+		proxyServerAddress = pref
+				.getString(
+						SIP_PROXY_SERVER_ADDRESS,
+						context.getString(R.string.preference_sip_proxy_server_address_default));
+		if (proxyServerAddress == null || proxyServerAddress.equals(""))
 			throw new KurentoSipException(
 					"PROXY_SERVER_ADDRESS not assigned. It is mandatory.");
 
-		proxyServerPort = pref.getInt(SIP_PROXY_SERVER_PORT, -1);
+		proxyServerPort = pref
+				.getInt(SIP_PROXY_SERVER_PORT,
+						Integer.parseInt(context
+								.getString(R.integer.preference_sip_proxy_server_port_default)));
 		if (proxyServerPort < 1024)
 			throw new KurentoSipException(
 					"PROXY_SERVER_PORT must be >= 1024. It is mandatory.");
 
-		regExpires = pref.getInt(SIP_REG_EXPIRES, regExpires);
+		regExpires = pref.getInt(SIP_REG_EXPIRES, Integer.parseInt(context
+				.getString(R.integer.preference_sip_reg_expires_default)));
 		if (regExpires < 0)
 			throw new KurentoSipException("REG_EXPIRES must be > 0");
 
