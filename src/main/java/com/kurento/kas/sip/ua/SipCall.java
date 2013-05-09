@@ -185,6 +185,7 @@ public class SipCall implements Call {
 			stateTransition(State.TERMINATED);
 			try {
 				new CBye(sipUA, this);
+				terminatedCall(TerminateReason.NONE);
 			} catch (KurentoSipException e) {
 				callFailed(new KurentoException("Unable to send BYE request", e));
 			}

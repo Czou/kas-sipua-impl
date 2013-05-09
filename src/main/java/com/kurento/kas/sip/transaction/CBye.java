@@ -22,13 +22,11 @@ import javax.sip.message.Request;
 import com.kurento.kas.sip.ua.KurentoSipException;
 import com.kurento.kas.sip.ua.SipCall;
 import com.kurento.kas.sip.ua.SipUA;
-import com.kurento.kas.ua.Call.TerminateReason;
 
 public class CBye extends CTransaction {
 
 	public CBye(SipUA sipUA, SipCall call) throws KurentoSipException {
 		super(Request.BYE, sipUA, call);
-		call.terminatedCall(TerminateReason.NONE);
 		sendRequest();
 	}
 
