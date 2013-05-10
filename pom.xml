@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.kurento.kas</groupId>
 	<artifactId>kas-sipua-impl</artifactId>
-	<packaging>jar</packaging>
+	<packaging>apklib</packaging>
 
 	<name>Sip User Agent implementation</name>
 	<version>2.0.0-SNAPSHOT</version>
@@ -13,6 +13,8 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8 </project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<maven.compiler.source>1.6</maven.compiler.source>
+		<maven.compiler.target>1.6</maven.compiler.target>
 
 		<sign.develop>true</sign.develop>
 		<android.platform>14</android.platform>
@@ -22,9 +24,14 @@
 		<slf4j.version>1.6.4</slf4j.version>
 		<log4j.version>1.2.8</log4j.version>
 		<slf4j-android.version>1.6.1-RC1</slf4j-android.version>
+		<jain-sip-api.version>1.2</jain-sip-api.version>
 		<jain-sip-ri.version>1.2.167</jain-sip-ri.version>
+		<android-api.version>1.0.0-SNAPSHOT</android-api.version>
 		<kas-webrtc-jar.version>0.0.1-SNAPSHOT</kas-webrtc-jar.version>
 		<kas-webrtc-native.version>0.0.1-SNAPSHOT</kas-webrtc-native.version>
+
+		<!-- Plugins Versions -->
+		<android-maven-plugin.version>3.5.3</android-maven-plugin.version>
 	</properties>
 
 	<organization>
@@ -52,12 +59,11 @@
 		</mailingList>
 	</mailingLists>
 
-
 	<dependencies>
 		<dependency>
 			<groupId>com.kurento.kas</groupId>
 			<artifactId>android-api</artifactId>
-			<version>1.0.0-SNAPSHOT</version>
+			<version>${android-api.version}</version>
 		</dependency>
 
 		<dependency>
@@ -87,17 +93,92 @@
 		<dependency>
 			<groupId>javax.sip</groupId>
 			<artifactId>jain-sip-api</artifactId>
-			<version>1.2</version>
-			<scope>provided</scope>
+			<version>${jain-sip-api.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>javax.sip</groupId>
 			<artifactId>jain-sip-ri</artifactId>
 			<version>${jain-sip-ri.version}</version>
-			<scope>provided</scope>
 		</dependency>
 	</dependencies>
+
+	<build>
+		<resources>
+			<resource>
+				<directory>${basedir}/res</directory>
+				<filtering>true</filtering>
+				<targetPath>${project.build.directory}/filtered-res</targetPath>
+				<includes>
+					<include>**/*.xml</include>
+				</includes>
+			</resource>
+			<resource>
+				<directory>${basedir}/res</directory>
+				<filtering>false</filtering>
+				<targetPath>${project.build.directory}/filtered-res</targetPath>
+				<excludes>
+					<exclude>**/*.xml</exclude>
+				</excludes>
+			</resource>
+		</resources>
+
+		<plugins>
+			<plugin>
+				<artifactId>maven-resources-plugin</artifactId>
+				<executions>
+					<execution>
+						<phase>initialize</phase>
+						<goals>
+							<goal>resources</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-site-plugin</artifactId>
+				<version>3.0</version>
+				<configuration>
+					<locales>en</locales>
+					<encoding>UTF-8</encoding>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>com.jayway.maven.plugins.android.generation2</groupId>
+				<artifactId>android-maven-plugin</artifactId>
+				<extensions>true</extensions>
+				<version>${android-maven-plugin.version}</version>
+				<configuration>
+					<resourceDirectory>${project.build.directory}/filtered-res</resourceDirectory>
+					<manifest>
+						<debuggable>true</debuggable>
+					</manifest>
+					<sdk>
+						<platform>${android.platform}</platform>
+					</sdk>
+					<deleteConflictingFiles>true</deleteConflictingFiles>
+					<sign>
+						<debug>${sign.develop}</debug>
+					</sign>
+					<dex>
+						<jvmArguments>
+							<jvmArgument>-Xms1024m</jvmArgument>
+							<jvmArgument>-Xmx1048m</jvmArgument>
+						</jvmArguments>
+					</dex>
+				</configuration>
+			</plugin>
+		</plugins>
+
+		<extensions>
+			<extension>
+				<groupId>org.apache.maven.wagon</groupId>
+				<artifactId>wagon-ssh</artifactId>
+				<version>2.0</version>
+			</extension>
+		</extensions>
+	</build>
 
 	<repositories>
 		<repository>
@@ -122,107 +203,7 @@
 				<enabled>false</enabled>
 			</snapshots>
 		</repository>
-		<repository>
-			<id>mavencentral</id>
-			<name>Maven Central</name>
-			<url>http://repo1.maven.org/maven2/</url>
-		</repository>
-		<repository>
-			<id>java.net</id>
-			<name>Java net</name>
-			<url>http://download.java.net/maven/2/</url>
-		</repository>
-		<repository>
-			<id>jboss</id>
-			<name>JBoss Repository</name>
-			<url>http://repository.jboss.org/nexus/content/groups/public-jboss/</url>
-			<snapshots>
-				<enabled>false</enabled>
-			</snapshots>
-		</repository>
-		<repository>
-			<id>jboss-snapshots</id>
-			<name>JBoss Snapshot Repository</name>
-			<url>http://snapshots.jboss.org/maven2</url>
-			<releases>
-				<enabled>false</enabled>
-			</releases>
-			<snapshots>
-				<enabled>true</enabled>
-			</snapshots>
-		</repository>
 	</repositories>
-
-	<reporting>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-javadoc-plugin</artifactId>
-				<version>2.8</version>
-				<configuration>
-					<excludePackageNames>com.kurento.commons.sip.exception:com.kurento.commons.sip.transaction</excludePackageNames>
-				</configuration>
-			</plugin>
-		</plugins>
-	</reporting>
-
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<!-- version>2.3.2</version -->
-				<configuration>
-					<source>1.6</source>
-					<target>1.6</target>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>buildnumber-maven-plugin</artifactId>
-				<executions>
-					<execution>
-						<phase>validate</phase>
-						<goals>
-							<goal>create</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<doCheck>false</doCheck>
-					<doUpdate>false</doUpdate>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<configuration>
-					<archive>
-						<manifestEntries>
-							<SCM-Revision>${buildNumber}</SCM-Revision>
-						</manifestEntries>
-					</archive>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-site-plugin</artifactId>
-				<version>3.0</version>
-				<configuration>
-					<locales>en</locales>
-					<encoding>UTF-8</encoding>
-				</configuration>
-			</plugin>
-		</plugins>
-
-		<extensions>
-			<extension>
-				<groupId>org.apache.maven.wagon</groupId>
-				<artifactId>wagon-ssh</artifactId>
-				<version>2.0</version>
-			</extension>
-		</extensions>
-	</build>
 
 	<distributionManagement>
 		<site>
