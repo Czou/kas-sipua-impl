@@ -210,7 +210,8 @@ public abstract class CTransaction extends Transaction {
 		List<ViaHeader> viaHeaders = new ArrayList<ViaHeader>();
 		ViaHeader viaHeader = sipUA.getHeaderFactory().createViaHeader(
 				sipUA.getLocalAddress(), sipUA.getLocalPort(),
-				sipUA.getSipPreferences().getTransport(), getNewRandomBranch());
+				sipUA.getPreferences().getSipTransport(),
+				getNewRandomBranch());
 
 		viaHeader.setRPort();
 		// add via headers

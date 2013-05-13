@@ -109,13 +109,13 @@ public class SipUA extends UA {
 
 	private Map<String, SipRegister> localUris = new ConcurrentHashMap<String, SipRegister>();
 
-	Preferences sipPreferences;
+	private Preferences preferences;
 
 	public SipUA(Context context) throws KurentoSipException {
 		super(context);
 
 		try {
-			sipPreferences = new Preferences(context);
+			preferences = new Preferences(context);
 			sipFactory = SipFactory.getInstance();
 			addressFactory = sipFactory.createAddressFactory();
 			headerFactory = sipFactory.createHeaderFactory();
@@ -151,8 +151,8 @@ public class SipUA extends UA {
 	//
 	// ////////////////
 
-	public Preferences getSipPreferences() {
-		return sipPreferences;
+	public Preferences getPreferences() {
+		return preferences;
 	}
 
 	public String getLocalAddress() {
@@ -162,7 +162,7 @@ public class SipUA extends UA {
 
 	public int getLocalPort() {
 		// TODO Return local port depending on STUN config
-		return sipPreferences.getLocalPort();
+		return preferences.getSipLocalPort();
 	}
 
 	public AlarmUaTimer getTimer() {
@@ -269,7 +269,7 @@ public class SipUA extends UA {
 			terminateSipStack(); // Just in case
 
 			localAddress = NetworkUtilities.getLocalInterface(null,
-					sipPreferences.isOnlyIpv4());
+					preferences.isSipOnlyIpv4());
 
 			// TODO Find configuration that supports TLS / DTLS
 			// TODO Find configuration that supports TCP with persistent
@@ -278,9 +278,9 @@ public class SipUA extends UA {
 
 			Properties jainProps = new Properties();
 
-			String outboundProxy = sipPreferences.getProxyServerAddress() + ":"
-					+ sipPreferences.getProxyServerPort() + "/"
-					+ sipPreferences.getTransport();
+			String outboundProxy = preferences.getSipProxyServerAddress() + ":"
+					+ preferences.getSipProxyServerPort() + "/"
+					+ preferences.getSipTransport();
 			jainProps.setProperty("javax.sip.OUTBOUND_PROXY", outboundProxy);
 
 			jainProps.setProperty("javax.sip.STACK_NAME",
@@ -309,12 +309,12 @@ public class SipUA extends UA {
 
 			// Create a listening point per interface
 			log.info("Create listening point at: " + localAddress + ":"
-					+ sipPreferences.getLocalPort() + "/"
-					+ sipPreferences.getTransport());
+					+ preferences.getSipLocalPort() + "/"
+					+ preferences.getSipTransport());
 			ListeningPoint listeningPoint = sipStack.createListeningPoint(
 					localAddress.getHostAddress(),
-					sipPreferences.getLocalPort(),
-					sipPreferences.getTransport());
+					preferences.getSipLocalPort(),
+					preferences.getSipTransport());
 			// listeningPoint.setSentBy(publicAddress + ":" + publicPort);
 
 			// Create SIP PROVIDER and add listening points
@@ -375,7 +375,7 @@ public class SipUA extends UA {
 
 		try {
 			log.debug("Request to register: " + register.getUri() + " for "
-					+ sipPreferences.getRegExpires() + " seconds.");
+					+ preferences.getSipRegExpires() + " seconds.");
 
 			SipRegister sipReg = localUris.get(register.getUri());
 			if (sipReg == null) {
@@ -384,7 +384,7 @@ public class SipUA extends UA {
 				Address contactAddress = addressFactory.createAddress("sip:"
 						+ register.getUser() + "@"
 						+ localAddress.getHostAddress() + ":"
-						+ sipPreferences.getLocalPort());
+						+ preferences.getSipLocalPort());
 				sipReg = new SipRegister(this, register, contactAddress);
 				log.debug("Add into localUris " + register.getUri());
 				localUris.put(register.getUri(), sipReg);
@@ -394,7 +394,7 @@ public class SipUA extends UA {
 			timer.cancel(sipReg.getSipRegisterTimerTask());
 
 			CRegister creg = new CRegister(this, sipReg,
-					sipPreferences.getRegExpires());
+					preferences.getSipRegExpires());
 			creg.sendRequest();
 		} catch (ParseException e) {
 			log.error("Unable to create contact address", e);
