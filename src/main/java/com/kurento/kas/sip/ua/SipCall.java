@@ -29,6 +29,7 @@ import javax.sip.message.Response;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.webrtc.AudioTrack;
 import org.webrtc.IceCandidate;
 import org.webrtc.MediaConstraints;
 import org.webrtc.MediaStream;
@@ -39,11 +40,15 @@ import org.webrtc.PeerConnection.SignalingState;
 import org.webrtc.PeerConnectionFactory;
 import org.webrtc.SdpObserver;
 import org.webrtc.SessionDescription;
+import org.webrtc.VideoCapturer;
+import org.webrtc.VideoSource;
+import org.webrtc.VideoTrack;
 
 import com.kurento.kas.sip.transaction.CBye;
 import com.kurento.kas.sip.transaction.CCancel;
 import com.kurento.kas.sip.transaction.CTransaction;
 import com.kurento.kas.sip.transaction.STransaction;
+import com.kurento.kas.sip.ua.Preferences.Direction;
 import com.kurento.kas.ua.Call;
 import com.kurento.kas.ua.KurentoException;
 
@@ -68,6 +73,13 @@ public class SipCall implements Call {
 	// MEDIA DATA
 	private PeerConnectionFactory peerConnectionFactory;
 	private PeerConnection peerConnection;
+
+	private MediaStream localStream;
+	private MediaStream remoteStream;
+
+	private AudioTrack audioTrack;
+	private VideoTrack videoTrack;
+	private VideoCapturer capturer = null;
 
 	private Set<CreateSdpOfferObserver> createSdpOfferObservers = new HashSet<CreateSdpOfferObserver>();
 	private Set<CreateSdpAnswerObserver> createSdpAnswerObservers = new HashSet<CreateSdpAnswerObserver>();
@@ -201,6 +213,16 @@ public class SipCall implements Call {
 		}
 	}
 
+	@Override
+	public MediaStream getLocalStream() {
+		return localStream;
+	}
+
+	@Override
+	public MediaStream getRemoteStream() {
+		return remoteStream;
+	}
+
 	// ////////////////////
 	//
 	// GETTERS & SETTERS
@@ -256,9 +278,23 @@ public class SipCall implements Call {
 
 	private void release() {
 		if (peerConnection != null) {
-			// peerConnection.dispose(); //TODO: check
 			peerConnection.close();
+			// peerConnection.dispose(); //FIXME: test fails when detach thread
+			peerConnection = null;
+			localStream = null;
+			remoteStream = null;
 		}
+
+		if (capturer != null) {
+			capturer.dispose();
+			capturer = null;
+		}
+
+		// FIXME: fails
+		// if (peerConnectionFactory != null) {
+		// peerConnectionFactory.dispose();
+		// peerConnectionFactory = null;
+		// }
 	}
 
 	private void localCallCancel() {
@@ -296,6 +332,7 @@ public class SipCall implements Call {
 	}
 
 	private void callFailed(KurentoException e) {
+		log.error("callFailed", e);
 		sipUA.getErrorHandler().onCallError(this, e);
 		terminatedCall(TerminateReason.ERROR);
 	}
@@ -316,6 +353,28 @@ public class SipCall implements Call {
 
 	public void createSdpOffer(final CreateSdpOfferObserver observer) {
 		MediaConstraints constraints = new MediaConstraints();
+
+		// FIXME: if OfferToReceiveVideo is false, native library crashes when
+		// the thread is detached
+		// Preferences pref = sipUA.getPreferences();
+		// Direction audioDirection = pref.getAudioDirection();
+		// if (Direction.SENDRECV.equals(audioDirection)
+		// || Direction.RECVONLY.equals(audioDirection))
+		// constraints.mandatory.add(new MediaConstraints.KeyValuePair(
+		// "OfferToReceiveAudio", "true"));
+		// else
+		// constraints.mandatory.add(new MediaConstraints.KeyValuePair(
+		// "OfferToReceiveAudio", "false"));
+		//
+		// Direction videoDirection = pref.getVideoDirection();
+		// if (Direction.SENDRECV.equals(videoDirection)
+		// || Direction.RECVONLY.equals(videoDirection))
+		// constraints.mandatory.add(new MediaConstraints.KeyValuePair(
+		// "OfferToReceiveVideo", "true"));
+		// else
+		// constraints.mandatory.add(new MediaConstraints.KeyValuePair(
+		// "OfferToReceiveVideo", "false"));
+
 		constraints.mandatory.add(new MediaConstraints.KeyValuePair(
 				"OfferToReceiveAudio", "true"));
 		constraints.mandatory.add(new MediaConstraints.KeyValuePair(
@@ -624,14 +683,23 @@ public class SipCall implements Call {
 
 	private void createPeerConnection() {
 		if (peerConnection == null) {
-			peerConnectionFactory = new PeerConnectionFactory(); // TODO:
-																	// dispose
-			// TODO: obtain iceServers
-			PeerConnection.IceServer iceServer = new PeerConnection.IceServer(
-					"stun:77.72.174.167:3478", "");
+			Preferences pref = sipUA.getPreferences();
+			peerConnectionFactory = new PeerConnectionFactory();
+
+			String stunServerAddress = pref.getStunServerAdress();
+			int stunServerPort = pref.getStunServerPort();
+			String stunServerPassword = pref.getStunServerPassword();
+
 			List<PeerConnection.IceServer> iceServers = new ArrayList<PeerConnection.IceServer>();
-			iceServers.add(iceServer);
-			// TODO: dispose peerConnection
+			if (!"".equals(stunServerAddress)) {
+				log.debug("stun server: " + "stun:" + stunServerAddress + ":"
+						+ stunServerPort);
+				PeerConnection.IceServer iceServer = new PeerConnection.IceServer(
+						"stun:" + stunServerAddress + ":" + stunServerPort,
+						stunServerPassword);
+				iceServers.add(iceServer);
+			}
+
 			peerConnection = peerConnectionFactory.createPeerConnection(
 					iceServers, new MediaConstraints(),
 					new PeerConnection.Observer() {
@@ -683,29 +751,50 @@ public class SipCall implements Call {
 						@Override
 						public void onAddStream(MediaStream stream) {
 							log.debug("peerConnection onAddStream");
-							// MediaStream lMS = factory
-							// .createLocalMediaStream("ARDAMS");
-							//
-							// // VideoSource videoSource = factory
-							// // .createVideoSource(capturer,
-							// // new MediaConstraints());
-							// // VideoTrack videoTrack =
-							// factory.createVideoTrack(
-							// // "ARDAMSv0", videoSource);
-							// // videoTrack.addRenderer(new VideoRenderer(
-							// // new VideoCallbacks(vsv,
-							// // VideoStreamsView.Endpoint.LOCAL)));
-							// // lMS.addTrack(videoTrack);
-							// lMS.addTrack(factory.createAudioTrack("ARDAMSa0"));
-							// peerConnection.addStream(lMS,
-							// new MediaConstraints());
+							remoteStream = stream;
 						}
 					});
 
-			MediaStream lMS = peerConnectionFactory
+			localStream = peerConnectionFactory
 					.createLocalMediaStream("ARDAMS");
-			lMS.addTrack(peerConnectionFactory.createAudioTrack("ARDAMSa0"));
-			peerConnection.addStream(lMS, new MediaConstraints());
+
+			// TODO: manage if audioDirection and videoDirection both are
+			// INACTIVE because the SDP is not generated
+			Direction audioDirection = pref.getAudioDirection();
+			log.debug("audioDirection: " + audioDirection);
+			if (Direction.SENDRECV.equals(audioDirection)
+					|| Direction.SENDONLY.equals(audioDirection)) {
+				audioTrack = peerConnectionFactory.createAudioTrack("ARDAMSa0");
+				localStream.addTrack(audioTrack);
+			}
+
+			Direction videoDirection = pref.getVideoDirection();
+			log.debug("videoDirection: " + videoDirection);
+			if (Direction.SENDRECV.equals(videoDirection)
+					|| Direction.SENDONLY.equals(videoDirection)) {
+
+				if (pref.isFrontCamera()) {
+					log.debug("create front camera");
+					capturer = VideoCapturer
+							.create("Camera 1, Facing front, Orientation 270");
+				}
+
+				if (capturer == null) {
+					log.debug("create back camera");
+					capturer = VideoCapturer
+							.create("Camera 0, Facing back, Orientation 90");
+				}
+
+				if (capturer != null) {
+					VideoSource videoSource = peerConnectionFactory
+							.createVideoSource(capturer, new MediaConstraints());
+					videoTrack = peerConnectionFactory.createVideoTrack(
+							"ARDAMSv0", videoSource);
+					localStream.addTrack(videoTrack);
+				}
+			}
+
+			peerConnection.addStream(localStream, new MediaConstraints());
 		}
 	}
 
