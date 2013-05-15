@@ -58,6 +58,7 @@ import android.content.Context;
 import com.kurento.kas.conference.Conference;
 import com.kurento.kas.sip.transaction.CInvite;
 import com.kurento.kas.sip.transaction.CRegister;
+import com.kurento.kas.sip.transaction.CRegisterPersistentTcp;
 import com.kurento.kas.sip.transaction.CTransaction;
 import com.kurento.kas.sip.transaction.SAck;
 import com.kurento.kas.sip.transaction.SBye;
@@ -98,6 +99,9 @@ public class SipUA extends UA {
 
 	private AlarmUaTimer timer;
 	private InetAddress localAddress;
+
+	private int publicPort = -1;
+	private String publicAddress = "";
 
 	// Handlers
 	private ErrorHandler errorHandler;
@@ -165,6 +169,26 @@ public class SipUA extends UA {
 		return preferences.getSipLocalPort();
 	}
 
+	public int getPublicPort() {
+		if (publicPort == -1)
+			return getLocalPort();
+		return publicPort;
+	}
+
+	public void setPublicPort(int publicPort) {
+		this.publicPort = publicPort;
+	}
+
+	public String getPublicAddress() {
+		if ("".equals(publicAddress))
+			return getLocalAddress();
+		return publicAddress;
+	}
+
+	public void setPublicAddress(String publicAddress) {
+		this.publicAddress = publicAddress;
+	}
+
 	public AlarmUaTimer getTimer() {
 		return timer;
 	}
@@ -194,6 +218,21 @@ public class SipUA extends UA {
 		if (sipReg != null)
 			return sipReg.getAddress();
 		return null;
+	}
+
+	public void updateContactAddress(String contactUri) {
+		SipRegister sipReg = localUris.get(contactUri);
+		if (sipReg != null) {
+			try {
+				Address contactAddress = addressFactory.createAddress("sip:"
+						+ sipReg.getRegister().getUser() + "@"
+						+ getPublicAddress() + ":" + getPublicPort()
+						+ ";transport=" + preferences.getSipTransport());
+				sipReg.setAddress(contactAddress);
+			} catch (ParseException e) {
+				log.error("Unable to update contact address", e);
+			}
+		}
 	}
 
 	// ////////////////
@@ -364,6 +403,21 @@ public class SipUA extends UA {
 	//
 	// ////////////////
 
+	public void registerPersistentTcp(SipRegister sipReg, int expires) {
+		try {
+			CRegisterPersistentTcp cunreg = new CRegisterPersistentTcp(this,
+					sipReg, expires);
+			cunreg.sendRequest();
+		} catch (KurentoSipException e) {
+			log.error("Unable to register", e);
+			e.printStackTrace();
+			registerHandler.onConnectionFailure(sipReg.getRegister());
+		} catch (KurentoException e) {
+			log.error("Unable to create CRegister", e);
+			registerHandler.onConnectionFailure(sipReg.getRegister());
+		}
+	}
+
 	@Override
 	public void register(Register register) {
 		// TODO Implement URI register
@@ -400,9 +454,14 @@ public class SipUA extends UA {
 			// Before registration remove previous timers
 			timer.cancel(sipReg.getSipRegisterTimerTask());
 
-			CRegister creg = new CRegister(this, sipReg,
-					preferences.getSipRegExpires());
-			creg.sendRequest();
+			if (ListeningPoint.TCP.equalsIgnoreCase(preferences
+					.getSipTransport())) {
+				registerPersistentTcp(sipReg, 0);
+			} else {
+				CRegister creg = new CRegister(this, sipReg,
+						preferences.getSipRegExpires());
+				creg.sendRequest();
+			}
 		} catch (ParseException e) {
 			log.error("Unable to create contact address", e);
 			registerHandler.onConnectionFailure(register);

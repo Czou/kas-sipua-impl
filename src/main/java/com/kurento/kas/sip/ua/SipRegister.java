@@ -46,6 +46,10 @@ public class SipRegister {
 		return this.address;
 	}
 
+	public void setAddress(Address address) {
+		this.address = address;
+	}
+
 	public synchronized long getCseq() {
 		return cseq++;
 	}

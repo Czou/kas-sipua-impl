@@ -45,9 +45,9 @@ public class CRegister extends CTransaction {
 	private static final Logger log = LoggerFactory.getLogger(CRegister.class
 			.getSimpleName());
 
-	private SipRegister sipRegister;
-	private Register register;
-	private int expires;
+	SipRegister sipRegister;
+	Register register;
+	int expires;
 
 	public CRegister(SipUA sipUA, SipRegister sipRegister, int expires)
 			throws KurentoException, KurentoSipException {
