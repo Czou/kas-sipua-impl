@@ -25,7 +25,7 @@
 		<log4j.version>1.2.8</log4j.version>
 		<slf4j-android.version>1.6.1-RC1</slf4j-android.version>
 		<jain-sip-api.version>1.2</jain-sip-api.version>
-		<jain-sip-ri.version>1.2.167</jain-sip-ri.version>
+		<jain-sip-ri.version>1.2.139</jain-sip-ri.version>
 		<android-api.version>1.0.0-SNAPSHOT</android-api.version>
 		<kas-webrtc-jar.version>0.0.1-SNAPSHOT</kas-webrtc-jar.version>
 		<kas-webrtc-native.version>0.0.1-SNAPSHOT</kas-webrtc-native.version>
