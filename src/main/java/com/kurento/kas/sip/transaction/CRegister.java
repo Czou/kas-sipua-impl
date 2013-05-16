@@ -93,7 +93,7 @@ public class CRegister extends CTransaction {
 			if (expires > 0) {
 				long period = (long) (expires * 1000 * 0.5);
 				log.debug("Period = " + expires);
-				sipUA.getTimer().schedule(
+				sipUA.getRegisterTimer().schedule(
 						sipRegister.getSipRegisterTimerTask(), period, period);
 			}
 			sipUA.getRegisterHandler().onRegistrationSuccess(register);

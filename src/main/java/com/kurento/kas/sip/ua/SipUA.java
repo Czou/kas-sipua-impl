@@ -53,6 +53,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.webrtc.PeerConnectionFactory;
 
+import android.app.AlarmManager;
 import android.content.Context;
 
 import com.kurento.kas.conference.Conference;
@@ -97,7 +98,7 @@ public class SipUA extends UA {
 	private SipStack sipStack;
 	private SipListenerImpl sipListenerImpl = new SipListenerImpl();
 
-	private AlarmUaTimer timer;
+	private AlarmUaTimer registerTimer;
 	private InetAddress localAddress;
 
 	private int publicPort = -1;
@@ -133,7 +134,8 @@ public class SipUA extends UA {
 						}
 					});
 
-			this.timer = new AlarmUaTimer(context);
+			this.registerTimer = new AlarmUaTimer(context,
+					AlarmManager.ELAPSED_REALTIME_WAKEUP);
 			createDefaultHandlers();
 			configureSipStack();
 
@@ -189,8 +191,8 @@ public class SipUA extends UA {
 		this.publicAddress = publicAddress;
 	}
 
-	public AlarmUaTimer getTimer() {
-		return timer;
+	public AlarmUaTimer getRegisterTimer() {
+		return registerTimer;
 	}
 
 	public AddressFactory getAddressFactory() {
@@ -452,7 +454,7 @@ public class SipUA extends UA {
 			}
 
 			// Before registration remove previous timers
-			timer.cancel(sipReg.getSipRegisterTimerTask());
+			registerTimer.cancel(sipReg.getSipRegisterTimerTask());
 
 			if (ListeningPoint.TCP.equalsIgnoreCase(preferences
 					.getSipTransport())) {
@@ -487,7 +489,7 @@ public class SipUA extends UA {
 				return;
 			}
 
-			timer.cancel(sipReg.getSipRegisterTimerTask());
+			registerTimer.cancel(sipReg.getSipRegisterTimerTask());
 			CRegister creg = new CRegister(this, sipReg, 0);
 			creg.sendRequest();
 			localUris.remove(register.getUri());

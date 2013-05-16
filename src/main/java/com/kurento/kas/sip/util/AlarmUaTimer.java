@@ -15,11 +15,13 @@ public class AlarmUaTimer {
 
 	private AlarmManager alarmManager;
 	private Context context;
+	private int type;
 
 	private static HashMap<Integer, KurentoUaTimerTask> taskTable = new HashMap<Integer, KurentoUaTimerTask>();
 
-	public AlarmUaTimer(Context context) {
+	public AlarmUaTimer(Context context, int type) {
 		this.context = context;
+		this.type = type;
 		alarmManager = (AlarmManager) context
 				.getSystemService(Context.ALARM_SERVICE);
 	}
@@ -61,9 +63,8 @@ public class AlarmUaTimer {
 			PendingIntent pendingIntent = PendingIntent.getService(
 					this.context, uuid, serviceIntent, 0);
 
-			alarmManager.setRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP,
-					SystemClock.elapsedRealtime() + delay, period,
-					pendingIntent);
+			alarmManager.setRepeating(type, SystemClock.elapsedRealtime()
+					+ delay, period, pendingIntent);
 		}
 	}
 
