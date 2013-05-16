@@ -22,7 +22,6 @@ public class AlarmUaTimer {
 		this.context = context;
 		alarmManager = (AlarmManager) context
 				.getSystemService(Context.ALARM_SERVICE);
-
 	}
 
 	public static HashMap<Integer, KurentoUaTimerTask> getTaskTable() {
@@ -39,7 +38,7 @@ public class AlarmUaTimer {
 		}
 		Intent serviceIntent = new Intent();
 		serviceIntent.setClass(context.getApplicationContext(),
-				RegisterService.class);
+				AlarmService.class);
 		PendingIntent pendingIntent = PendingIntent.getService(context, uuid,
 				serviceIntent, 0);
 		alarmManager.cancel(pendingIntent);
@@ -48,8 +47,6 @@ public class AlarmUaTimer {
 
 	public void schedule(final KurentoUaTimerTask task, long delay, long period) {
 		if (!taskTable.containsValue(task)) {
-			// The new Random().nextInt is necessary because we need that
-			// pendingIntent will be differents.
 			Integer uuid = new Random().nextInt();
 			taskTable.put(uuid, task);
 
@@ -58,7 +55,7 @@ public class AlarmUaTimer {
 
 			Intent serviceIntent = new Intent();
 			serviceIntent.setClass(context.getApplicationContext(),
-					RegisterService.class);
+					AlarmService.class);
 			serviceIntent.putExtras(extras);
 
 			PendingIntent pendingIntent = PendingIntent.getService(
@@ -69,4 +66,5 @@ public class AlarmUaTimer {
 					pendingIntent);
 		}
 	}
+
 }

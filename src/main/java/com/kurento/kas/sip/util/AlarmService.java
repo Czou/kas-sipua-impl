@@ -5,7 +5,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.IBinder;
 
-public class RegisterService extends Service {
+public class AlarmService extends Service {
 
 	@Override
 	public IBinder onBind(Intent intent) {
