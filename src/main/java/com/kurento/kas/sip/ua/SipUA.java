@@ -17,6 +17,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>
 
 package com.kurento.kas.sip.ua;
 
+import gov.nist.javax.sip.ListeningPointExt;
+
+import java.io.IOException;
 import java.net.InetAddress;
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -67,6 +70,7 @@ import com.kurento.kas.sip.transaction.SCancel;
 import com.kurento.kas.sip.transaction.SInvite;
 import com.kurento.kas.sip.transaction.STransaction;
 import com.kurento.kas.sip.util.AlarmUaTimer;
+import com.kurento.kas.sip.util.KurentoUaTimerTask;
 import com.kurento.kas.sip.util.NetworkUtilities;
 import com.kurento.kas.ua.Call;
 import com.kurento.kas.ua.CallDialingHandler;
@@ -98,8 +102,9 @@ public class SipUA extends UA {
 	private SipStack sipStack;
 	private SipListenerImpl sipListenerImpl = new SipListenerImpl();
 
-	private AlarmUaTimer registerTimer;
+	private AlarmUaTimer wakeupTimer;
 	private InetAddress localAddress;
+	private SipKeepAliveTimerTask sipKeepAliveTimerTask;
 
 	private int publicPort = -1;
 	private String publicAddress = "";
@@ -134,7 +139,7 @@ public class SipUA extends UA {
 						}
 					});
 
-			this.registerTimer = new AlarmUaTimer(context,
+			this.wakeupTimer = new AlarmUaTimer(context,
 					AlarmManager.ELAPSED_REALTIME_WAKEUP);
 			createDefaultHandlers();
 			configureSipStack();
@@ -148,6 +153,11 @@ public class SipUA extends UA {
 
 	@Override
 	public void terminate() {
+		if (sipKeepAliveTimerTask != null) {
+			log.info("Stopping SIP keep alive");
+			wakeupTimer.cancel(sipKeepAliveTimerTask);
+		}
+
 		terminateSipStack();
 	}
 
@@ -191,8 +201,8 @@ public class SipUA extends UA {
 		this.publicAddress = publicAddress;
 	}
 
-	public AlarmUaTimer getRegisterTimer() {
-		return registerTimer;
+	public AlarmUaTimer getWakeupTimer() {
+		return wakeupTimer;
 	}
 
 	public AddressFactory getAddressFactory() {
@@ -364,6 +374,18 @@ public class SipUA extends UA {
 			// Add User Agent as listener for the SIP provider
 			sipProvider.addSipListener(sipListenerImpl);
 
+			if (sipKeepAliveTimerTask != null) {
+				// Disable keep alive if already active
+				wakeupTimer.cancel(sipKeepAliveTimerTask);
+			}
+			if (preferences.isEnableSipKeepAlive()) {
+				log.info("Using SIP keep alive");
+				sipKeepAliveTimerTask = new SipKeepAliveTimerTask(
+						listeningPoint, preferences);
+				long period = preferences.getSipKeepAliveSeconds() * 1000;
+				wakeupTimer.schedule(sipKeepAliveTimerTask, period, period);
+			}
+
 			// TODO Re-register all local contacts
 
 		} catch (Throwable t) {
@@ -454,7 +476,7 @@ public class SipUA extends UA {
 			}
 
 			// Before registration remove previous timers
-			registerTimer.cancel(sipReg.getSipRegisterTimerTask());
+			wakeupTimer.cancel(sipReg.getSipRegisterTimerTask());
 
 			if (ListeningPoint.TCP.equalsIgnoreCase(preferences
 					.getSipTransport())) {
@@ -489,7 +511,7 @@ public class SipUA extends UA {
 				return;
 			}
 
-			registerTimer.cancel(sipReg.getSipRegisterTimerTask());
+			wakeupTimer.cancel(sipReg.getSipRegisterTimerTask());
 			CRegister creg = new CRegister(this, sipReg, 0);
 			creg.sendRequest();
 			localUris.remove(register.getUri());
@@ -752,6 +774,30 @@ public class SipUA extends UA {
 				log.info("Default onTerminate");
 			}
 		};
+	}
+
+	private class SipKeepAliveTimerTask extends KurentoUaTimerTask {
+
+		private ListeningPointExt listeningPoint;
+		private String proxyAddr;
+		private int proxyPort;
+
+		public SipKeepAliveTimerTask(ListeningPoint listeningPoint,
+				Preferences preferences) {
+			this.listeningPoint = (ListeningPointExt) listeningPoint;
+			this.proxyAddr = preferences.getSipProxyServerAddress();
+			this.proxyPort = preferences.getSipProxyServerPort();
+		}
+
+		@Override
+		public void run() {
+			log.debug("Sending SIP keep alive");
+			try {
+				listeningPoint.sendHeartbeat(proxyAddr, proxyPort);
+			} catch (IOException e) {
+				log.error("Unable to send SIP keep-alive message", e);
+			}
+		}
 	}
 
 }
