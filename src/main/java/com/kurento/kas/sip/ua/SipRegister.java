@@ -13,7 +13,7 @@ import com.kurento.kas.ua.Register;
 public class SipRegister {
 
 	private static final Logger log = LoggerFactory
-			.getLogger(SipRegister.class);
+			.getLogger(SipRegister.class.getSimpleName());
 
 	private SipUA sipUA;
 	private Register register;
