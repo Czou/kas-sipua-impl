@@ -22,6 +22,9 @@ public class Preferences {
 	public static final String SIP_ONLY_IPV4 = "SIP_ONLY_IPV4";
 	public static final String SIP_TRANSPORT = "TRANSPORT";
 
+	public static final String ENABLE_SIP_KEEP_ALIVE = "ENABLE_SIP_KEEP_ALIVE";
+	public static final String SIP_KEEP_ALIVE_SECONDS = "SIP_KEEP_ALIVE_SECONDS";
+
 	// SIP Proxy Server
 	public static final String SIP_PROXY_SERVER_ADDRESS = "PROXY_SERVER_ADDRESS"; // Mandatory
 	public static final String SIP_PROXY_SERVER_PORT = "PROXY_SERVER_PORT"; // Mandatory
@@ -39,8 +42,11 @@ public class Preferences {
 	private int stunServerPort;
 	private String stunServerPassword;
 
-	private boolean sipOnlyIpv4 = true;
+	private boolean sipOnlyIpv4;
 	private String sipTransport;
+
+	private boolean enableSipKeepAlive;
+	private int sipKeepAliveSeconds;
 
 	private String sipProxyServerAddress;
 	private int sipProxyServerPort;
@@ -88,6 +94,26 @@ public class Preferences {
 		else
 			throw new KurentoSipException(SIP_TRANSPORT
 					+ " must be UDP, TCP or TLS.");
+
+		String sipEnableSipKeepAliveDefault = pref
+				.getString(
+						ENABLE_SIP_KEEP_ALIVE,
+						context.getString(R.string.preference_enable_sip_keep_alive_default));
+		if ("true".equalsIgnoreCase(sipEnableSipKeepAliveDefault))
+			enableSipKeepAlive = true;
+		else if ("false".equalsIgnoreCase(sipEnableSipKeepAliveDefault))
+			enableSipKeepAlive = false;
+		else
+			throw new KurentoSipException(ENABLE_SIP_KEEP_ALIVE
+					+ " must be true or false.");
+
+		sipKeepAliveSeconds = pref
+				.getInt(SIP_KEEP_ALIVE_SECONDS,
+						Integer.parseInt(context
+								.getString(R.integer.preference_sip_keep_alive_seconds_default)));
+		if (sipKeepAliveSeconds < 0)
+			throw new KurentoSipException(SIP_KEEP_ALIVE_SECONDS
+					+ " must be >= 0");
 
 		sipProxyServerAddress = pref
 				.getString(
@@ -178,6 +204,14 @@ public class Preferences {
 
 	public String getSipTransport() {
 		return sipTransport;
+	}
+
+	public boolean isEnableSipKeepAlive() {
+		return enableSipKeepAlive;
+	}
+
+	public int getSipKeepAliveSeconds() {
+		return sipKeepAliveSeconds;
 	}
 
 	public String getSipProxyServerAddress() {
