@@ -20,6 +20,6 @@
     <!-- Media -->
     <string name="preference_video_direction_default">sendrecv</string> <!-- sendrecv | recvonly | sendonly | inactive -->
     <string name="preference_audio_direction_default">sendrecv</string> <!-- sendrecv | recvonly | sendonly | inactive -->
-    <string name="preference_front_camear_default">false</string> <!-- true | false -->
+    <string name="preference_front_camera_default">false</string> <!-- true | false -->
 
 </resources>

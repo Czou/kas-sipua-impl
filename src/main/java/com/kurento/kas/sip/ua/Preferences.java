@@ -150,7 +150,7 @@ public class Preferences {
 					+ " must be sendrecv, recvonly, sendonly or inactive.");
 
 		String frontCameraStr = pref.getString(FRONT_CAMERA,
-				context.getString(R.string.preference_front_camear_default));
+				context.getString(R.string.preference_front_camera_default));
 		if ("true".equalsIgnoreCase(frontCameraStr))
 			frontCamera = true;
 		else if ("false".equalsIgnoreCase(frontCameraStr))
