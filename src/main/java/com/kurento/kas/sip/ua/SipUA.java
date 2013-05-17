@@ -434,10 +434,9 @@ public class SipUA extends UA {
 			cunreg.sendRequest();
 		} catch (KurentoSipException e) {
 			log.error("Unable to register", e);
-			e.printStackTrace();
 			registerHandler.onConnectionFailure(sipReg.getRegister());
 		} catch (KurentoException e) {
-			log.error("Unable to create CRegister", e);
+			log.error("Unable to create CRegisterPersistentTcp", e);
 			registerHandler.onConnectionFailure(sipReg.getRegister());
 		}
 	}
