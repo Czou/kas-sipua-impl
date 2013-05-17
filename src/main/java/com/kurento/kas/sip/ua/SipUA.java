@@ -403,6 +403,17 @@ public class SipUA extends UA {
 		}
 	}
 
+	private void reconfigureSipStack() {
+		// TODO: add some retries?
+		try {
+			log.info("Reconfigure SIP stack");
+			configureSipStack();
+		} catch (KurentoSipException e) {
+			log.error("Error reconfiguring SIP stack", e);
+			errorHandler.onUAError(SipUA.this, new KurentoException(e));
+		}
+	}
+
 	private void terminateSipStack() {
 		if (sipStack != null && sipProvider != null) {
 			log.info("Delete SIP listening points");
@@ -803,6 +814,9 @@ public class SipUA extends UA {
 				listeningPoint.sendHeartbeat(proxyAddr, proxyPort);
 			} catch (IOException e) {
 				log.error("Unable to send SIP keep-alive message", e);
+				reconfigureSipStack();
+			}
+		}
 			}
 		}
 	}
