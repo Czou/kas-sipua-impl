@@ -374,18 +374,23 @@ public class SipUA extends UA {
 			// Add User Agent as listener for the SIP provider
 			sipProvider.addSipListener(sipListenerImpl);
 
-			if (sipKeepAliveTimerTask != null) {
-				// Disable keep alive if already active
-				wakeupTimer.cancel(sipKeepAliveTimerTask);
-			}
-			if (preferences.isEnableSipKeepAlive()) {
-				log.info("Using SIP keep alive");
-				sipKeepAliveTimerTask = new SipKeepAliveTimerTask(
-						listeningPoint, preferences);
-				long period = preferences.getSipKeepAliveSeconds() * 1000;
-				wakeupTimer.schedule(sipKeepAliveTimerTask, period, period);
-			}
+			if (ListeningPoint.TCP.equalsIgnoreCase(preferences
+					.getSipTransport())) {
+				// rfc5626 3.5.1. CRLF Keep-Alive Technique
+				// Only with connection-oriented
+				if (sipKeepAliveTimerTask != null) {
+					// Disable keep alive if already active
+					wakeupTimer.cancel(sipKeepAliveTimerTask);
+				}
+				if (preferences.isEnableSipKeepAlive()) {
+					log.info("Using SIP keep alive");
+					sipKeepAliveTimerTask = new SipKeepAliveTimerTask(
+							listeningPoint, preferences);
+					long period = preferences.getSipKeepAliveSeconds() * 1000;
+					wakeupTimer.schedule(sipKeepAliveTimerTask, period, period);
+				}
 
+			}
 
 			// Re-register all local contacts
 			for (SipRegister reg : localUris.values())
