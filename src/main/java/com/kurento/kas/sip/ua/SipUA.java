@@ -386,7 +386,10 @@ public class SipUA extends UA {
 				wakeupTimer.schedule(sipKeepAliveTimerTask, period, period);
 			}
 
-			// TODO Re-register all local contacts
+
+			// Re-register all local contacts
+			for (SipRegister reg : localUris.values())
+				register(reg.getRegister());
 
 		} catch (Throwable t) {
 			terminateSipStack();
