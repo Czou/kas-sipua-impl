@@ -18,9 +18,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>
 package com.kurento.kas.sip.ua;
 
 import gov.nist.javax.sip.ListeningPointExt;
+import gov.nist.javax.sip.SipStackExt;
+import gov.nist.javax.sip.SipStackImpl;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.SocketAddress;
+import java.net.UnknownHostException;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Map;
@@ -39,7 +43,6 @@ import javax.sip.ServerTransaction;
 import javax.sip.SipFactory;
 import javax.sip.SipListener;
 import javax.sip.SipProvider;
-import javax.sip.SipStack;
 import javax.sip.TimeoutEvent;
 import javax.sip.TransactionAlreadyExistsException;
 import javax.sip.TransactionTerminatedEvent;
@@ -99,12 +102,19 @@ public class SipUA extends UA {
 
 	// Sip Stack
 	private SipProvider sipProvider;
-	private SipStack sipStack;
+	private SipStackExt sipStack;
 	private SipListenerImpl sipListenerImpl = new SipListenerImpl();
 
 	private AlarmUaTimer wakeupTimer;
+	private AlarmUaTimer noWakeupTimer;
+
 	private InetAddress localAddress;
+	private SocketAddress tcpSocketAddress;
+
 	private SipKeepAliveTimerTask sipKeepAliveTimerTask;
+	private CheckTCPConnectionAliveTimerTask checkTcpConnectionAliveTimerTask;
+
+	private static final int CHECK_TCP_CONNECTION_ALIVE_PERIOD = 2000; // milliseconds
 
 	private int publicPort = -1;
 	private String publicAddress = "";
@@ -141,6 +151,8 @@ public class SipUA extends UA {
 
 			this.wakeupTimer = new AlarmUaTimer(context,
 					AlarmManager.ELAPSED_REALTIME_WAKEUP);
+			this.noWakeupTimer = new AlarmUaTimer(context,
+					AlarmManager.ELAPSED_REALTIME);
 			createDefaultHandlers();
 			configureSipStack();
 
@@ -156,6 +168,11 @@ public class SipUA extends UA {
 		if (sipKeepAliveTimerTask != null) {
 			log.info("Stopping SIP keep alive");
 			wakeupTimer.cancel(sipKeepAliveTimerTask);
+		}
+
+		if (checkTcpConnectionAliveTimerTask != null) {
+			log.info("Stopping TCP connection alive");
+			noWakeupTimer.cancel(checkTcpConnectionAliveTimerTask);
 		}
 
 		terminateSipStack();
@@ -350,13 +367,9 @@ public class SipUA extends UA {
 			log.info("Stack properties: " + jainProps);
 
 			// Create SIP STACK
-			sipStack = sipFactory.createSipStack(jainProps);
+			sipStack = new SipStackImpl(jainProps);
 			// TODO get socket from SipStackExt to perform STUN test
 			// TODO Verify socket transport to see if it is compatible with STUN
-
-			// sipStack.getLocalAddressForTcpDst(
-			// InetAddress.getAllByName("193.147.51.13")[0], 5060, addr,
-			// 8989);
 
 			// Create a listening point per interface
 			log.info("Create listening point at: " + localAddress + ":"
@@ -390,6 +403,19 @@ public class SipUA extends UA {
 					wakeupTimer.schedule(sipKeepAliveTimerTask, period, period);
 				}
 
+				tcpSocketAddress = sipStack.obtainLocalAddress(
+						InetAddress.getAllByName(preferences
+								.getSipProxyServerAddress())[0], preferences
+								.getSipProxyServerPort(), localAddress, 0);
+				log.debug("socketAddress: " + tcpSocketAddress);
+
+				if (sipKeepAliveTimerTask != null)
+					noWakeupTimer.cancel(checkTcpConnectionAliveTimerTask);
+
+				checkTcpConnectionAliveTimerTask = new CheckTCPConnectionAliveTimerTask();
+				noWakeupTimer.schedule(checkTcpConnectionAliveTimerTask,
+						CHECK_TCP_CONNECTION_ALIVE_PERIOD,
+						CHECK_TCP_CONNECTION_ALIVE_PERIOD);
 			}
 
 			// Re-register all local contacts
@@ -817,6 +843,29 @@ public class SipUA extends UA {
 				reconfigureSipStack();
 			}
 		}
+	}
+
+	private class CheckTCPConnectionAliveTimerTask extends KurentoUaTimerTask {
+
+		@Override
+		public void run() {
+			log.trace("------------ Check TCP Connection Alive ------------");
+			try {
+				SocketAddress sa = sipStack.obtainLocalAddress(
+						InetAddress.getAllByName(preferences
+								.getSipProxyServerAddress())[0], preferences
+								.getSipProxyServerPort(), localAddress, 0);
+				if (!tcpSocketAddress.toString()
+						.equalsIgnoreCase(sa.toString())) {
+					log.debug("Socket address changed: " + tcpSocketAddress
+							+ " -> " + sa);
+					reconfigureSipStack();
+				}
+			} catch (UnknownHostException e) {
+				log.warn("Unknown host", e);
+			} catch (IOException e) {
+				log.error("Error while obtaining local address", e);
+				reconfigureSipStack();
 			}
 		}
 	}
