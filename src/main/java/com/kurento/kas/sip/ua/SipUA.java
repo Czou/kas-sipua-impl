@@ -381,10 +381,17 @@ public class SipUA extends UA {
 			if (sipReg == null) {
 				log.debug("There is not a previous register for "
 						+ register.getUri() + ". Create new register.");
-				Address contactAddress = addressFactory.createAddress("sip:"
-						+ register.getUser() + "@"
+
+				String contactAddressStr = "sip:" + register.getUser() + "@"
 						+ localAddress.getHostAddress() + ":"
-						+ preferences.getSipLocalPort());
+						+ preferences.getSipLocalPort();
+				if (!ListeningPoint.UDP.equalsIgnoreCase(preferences
+						.getSipTransport()))
+					contactAddressStr += ";transport="
+							+ preferences.getSipTransport();
+
+				Address contactAddress = addressFactory
+						.createAddress(contactAddressStr);
 				sipReg = new SipRegister(this, register, contactAddress);
 				log.debug("Add into localUris " + register.getUri());
 				localUris.put(register.getUri(), sipReg);
