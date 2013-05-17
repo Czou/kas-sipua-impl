@@ -407,7 +407,7 @@ public class SipUA extends UA {
 						InetAddress.getAllByName(preferences
 								.getSipProxyServerAddress())[0], preferences
 								.getSipProxyServerPort(), localAddress, 0);
-				log.debug("socketAddress: " + tcpSocketAddress);
+				log.debug("Socket address: " + tcpSocketAddress);
 
 				if (sipKeepAliveTimerTask != null)
 					noWakeupTimer.cancel(checkTcpConnectionAliveTimerTask);
