@@ -95,8 +95,11 @@ public class CRegister extends CTransaction {
 				log.debug("Period = " + expires);
 				sipUA.getWakeupTimer().schedule(
 						sipRegister.getSipRegisterTimerTask(), period, period);
+				sipUA.getRegisterHandler().onUserOnline(register);
+			} else {
+				sipUA.getRegisterHandler().onUserOffline(register);
 			}
-			sipUA.getRegisterHandler().onRegistrationSuccess(register);
+
 		} else if (statusCode == Response.UNAUTHORIZED
 				|| statusCode == Response.PROXY_AUTHENTICATION_REQUIRED) {
 			// Peer Authentication
@@ -105,17 +108,20 @@ public class CRegister extends CTransaction {
 			} catch (KurentoSipException e) {
 				String msg = "Unable to send Auth REGISTER";
 				log.error(msg, e);
-				sipUA.getRegisterHandler().onConnectionFailure(register);
+				sipUA.getRegisterHandler().onRegisterError(register,
+						new KurentoException(e));
 			}
 		} else if (statusCode == Response.REQUEST_TIMEOUT) {
 			// 408: Request TimeOut
 			log.warn("<<<<<<< 408 REQUEST_TIMEOUT: Register Failure. Unable to contact registrar from "
 					+ register.getUri());
-			sipUA.getRegisterHandler().onConnectionFailure(register);
+			sipUA.getRegisterHandler().onUserOffline(register);
+			// TODO: retry
 		} else if (statusCode == Response.NOT_FOUND) { // 404: Not Found
 			log.warn("<<<<<<< 404 NOT_FOUND: Register Failure. User "
 					+ register.getUri() + " not found");
-			sipUA.getRegisterHandler().onConnectionFailure(register);
+			sipUA.getRegisterHandler().onRegisterError(register,
+					new KurentoException("404 NOT_FOUND"));
 		} else if (statusCode == Response.FORBIDDEN) { // Forbidden
 			log.warn("<<<<<<< 403 FORBIDDEN: Register Failure. User "
 					+ register.getUri() + " forbiden");
@@ -124,23 +130,27 @@ public class CRegister extends CTransaction {
 																	// errors
 			log.warn("<<<<<<< 500 SERVER_INTERNAL_ERROR Register: Server Error: "
 					+ response.getStatusCode());
-			sipUA.getRegisterHandler().onConnectionFailure(register);
+			sipUA.getRegisterHandler().onRegisterError(register,
+					new KurentoException("500 SERVER_INTERNAL_ERROR"));
 		} else if (statusCode == Response.SERVICE_UNAVAILABLE) { // server
 																	// errors
 			log.warn("<<<<<<< 503 SERVICE_UNAVAILABLE Register: Service unavailable: "
 					+ response.getStatusCode());
-			sipUA.getRegisterHandler().onConnectionFailure(register);
+			sipUA.getRegisterHandler().onRegisterError(register,
+					new KurentoException("503 SERVICE_UNAVAILABLE"));
 		} else { // Non supported response code Discard
 			log.warn("Register Failure. Status code: "
 					+ response.getStatusCode());
-			sipUA.getRegisterHandler().onConnectionFailure(register);
+			sipUA.getRegisterHandler().onRegisterError(register,
+					new KurentoException("Register failure"));
 		}
 	}
 
 	@Override
 	public void processTimeout() {
 		log.warn("Register request timeout for uri: " + register.getUri());
-		sipUA.getRegisterHandler().onConnectionFailure(register);
+		sipUA.getRegisterHandler().onUserOffline(register);
+		// TODO: retry
 	}
 
 	private void sendWithAuth(ResponseEvent event) throws KurentoSipException {

@@ -479,10 +479,11 @@ public class SipUA extends UA {
 			cunreg.sendRequest();
 		} catch (KurentoSipException e) {
 			log.error("Unable to register", e);
-			registerHandler.onConnectionFailure(sipReg.getRegister());
+			registerHandler.onRegisterError(sipReg.getRegister(),
+					new KurentoException(e));
 		} catch (KurentoException e) {
 			log.error("Unable to create CRegisterPersistentTcp", e);
-			registerHandler.onConnectionFailure(sipReg.getRegister());
+			registerHandler.onRegisterError(sipReg.getRegister(), e);
 		}
 	}
 
@@ -532,13 +533,13 @@ public class SipUA extends UA {
 			}
 		} catch (ParseException e) {
 			log.error("Unable to create contact address", e);
-			registerHandler.onConnectionFailure(register);
+			registerHandler.onRegisterError(register, new KurentoException(e));
 		} catch (KurentoSipException e) {
 			log.error("Unable to register", e);
-			registerHandler.onConnectionFailure(register);
+			registerHandler.onRegisterError(register, new KurentoException(e));
 		} catch (KurentoException e) {
 			log.error("Unable to create CRegister", e);
-			registerHandler.onConnectionFailure(register);
+			registerHandler.onRegisterError(register, e);
 		}
 	}
 
@@ -551,7 +552,7 @@ public class SipUA extends UA {
 			if (sipReg == null) {
 				log.warn("There is not a previous register for "
 						+ register.getUri());
-				registerHandler.onRegistrationSuccess(register);
+				registerHandler.onUserOffline(register);
 				return;
 			}
 
@@ -561,10 +562,10 @@ public class SipUA extends UA {
 			localUris.remove(register.getUri());
 		} catch (KurentoSipException e) {
 			log.error("Unable to register", e);
-			registerHandler.onConnectionFailure(register);
+			registerHandler.onRegisterError(register, new KurentoException(e));
 		} catch (KurentoException e) {
 			log.error("Unable to create CRegister", e);
-			registerHandler.onConnectionFailure(register);
+			registerHandler.onRegisterError(register, e);
 		}
 	}
 
@@ -772,19 +773,26 @@ public class SipUA extends UA {
 		registerHandler = new RegisterHandler() {
 
 			@Override
-			public void onRegistrationSuccess(Register register) {
-				log.info("Default onRegistrationSuccess");
+			public void onUserOnline(Register register) {
+				log.info("Default onUserOnline");
 			}
 
 			@Override
-			public void onConnectionFailure(Register register) {
-				log.info("Default onConnectionFailure");
+			public void onUserOffline(Register register) {
+				log.info("Default onUserOffline");
 			}
 
 			@Override
 			public void onAuthenticationFailure(Register register) {
 				log.info("Default onAuthenticationFailure");
 			}
+
+			@Override
+			public void onRegisterError(Register register,
+					KurentoException exception) {
+				log.info("Default onRegisterError");
+			}
+
 		};
 
 		callDialingHandler = new CallDialingHandler() {
