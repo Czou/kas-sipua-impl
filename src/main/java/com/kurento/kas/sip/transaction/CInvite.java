@@ -35,9 +35,9 @@ import org.webrtc.SessionDescription;
 
 import com.kurento.kas.sip.ua.KurentoSipException;
 import com.kurento.kas.sip.ua.SipCall;
-import com.kurento.kas.sip.ua.SipCall.CreateSdpOfferObserver;
 import com.kurento.kas.sip.ua.SipUA;
 import com.kurento.kas.ua.KurentoException;
+import com.kurento.kas.ua.impl.BaseCall.CreateSdpOfferObserver;
 
 public class CInvite extends CTransaction {
 

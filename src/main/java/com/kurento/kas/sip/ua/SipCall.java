@@ -17,9 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>
 package com.kurento.kas.sip.ua;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import javax.sip.Dialog;
 import javax.sip.SipException;
@@ -29,7 +27,6 @@ import javax.sip.message.Response;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.webrtc.AudioTrack;
 import org.webrtc.IceCandidate;
 import org.webrtc.MediaConstraints;
 import org.webrtc.MediaStream;
@@ -42,17 +39,16 @@ import org.webrtc.SdpObserver;
 import org.webrtc.SessionDescription;
 import org.webrtc.VideoCapturer;
 import org.webrtc.VideoSource;
-import org.webrtc.VideoTrack;
 
 import com.kurento.kas.sip.transaction.CBye;
 import com.kurento.kas.sip.transaction.CCancel;
 import com.kurento.kas.sip.transaction.CTransaction;
 import com.kurento.kas.sip.transaction.STransaction;
 import com.kurento.kas.sip.ua.Preferences.Direction;
-import com.kurento.kas.ua.Call;
 import com.kurento.kas.ua.KurentoException;
+import com.kurento.kas.ua.impl.BaseCall;
 
-public class SipCall implements Call {
+public class SipCall extends BaseCall {
 
 	protected static final Logger log = LoggerFactory.getLogger(SipCall.class
 			.getSimpleName());
@@ -64,25 +60,11 @@ public class SipCall implements Call {
 	private TerminateReason reason = TerminateReason.NONE;
 
 	// CALL DATA
-	private SipUA sipUA;
+	private final SipUA sipUA;
 	private Dialog dialog;
 	private STransaction incomingInitiatingRequest;
 	private CTransaction outgoingInitiatingRequest;
 	private Boolean request2Terminate = false;
-
-	// MEDIA DATA
-	private PeerConnectionFactory peerConnectionFactory;
-	private PeerConnection peerConnection;
-
-	private MediaStream localStream;
-	private MediaStream remoteStream;
-
-	private AudioTrack audioTrack;
-	private VideoTrack videoTrack;
-	private VideoCapturer capturer = null;
-
-	private Set<CreateSdpOfferObserver> createSdpOfferObservers = new HashSet<CreateSdpOfferObserver>();
-	private Set<CreateSdpAnswerObserver> createSdpAnswerObservers = new HashSet<CreateSdpAnswerObserver>();
 
 	// ////////////////////
 	//
@@ -211,16 +193,6 @@ public class SipCall implements Call {
 			log.warn("Bad hangup. Unable to hangup a call (" + getCallInfo()
 					+ ") with current state: " + state);
 		}
-	}
-
-	@Override
-	public MediaStream getLocalStream() {
-		return localStream;
-	}
-
-	@Override
-	public MediaStream getRemoteStream() {
-		return remoteStream;
 	}
 
 	// ////////////////////
@@ -797,17 +769,4 @@ public class SipCall implements Call {
 			peerConnection.addStream(localStream, new MediaConstraints());
 		}
 	}
-
-	public static interface CreateSdpOfferObserver {
-		public void onSdpOfferCreated(String sdp);
-
-		public void onError(KurentoException exception);
-	}
-
-	public static interface CreateSdpAnswerObserver {
-		public void onSdpAnswerCreated(String sdp);
-
-		public void onError(KurentoException exception);
-	}
-
 }
