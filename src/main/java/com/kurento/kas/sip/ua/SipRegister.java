@@ -12,8 +12,8 @@ import com.kurento.kas.ua.Register;
 
 public class SipRegister {
 
-	private static final Logger log = LoggerFactory
-			.getLogger(SipRegister.class.getSimpleName());
+	private static final Logger log = LoggerFactory.getLogger(SipRegister.class
+			.getSimpleName());
 
 	private SipUA sipUA;
 	private Register register;
@@ -22,6 +22,14 @@ public class SipRegister {
 	private Address address;
 	private SipRegisterTimerTask sipRegisterTimerTask;
 
+	public SipRegister(SipUA sipUA, Register register) {
+		this.sipUA = sipUA;
+		this.register = register;
+		this.registerCallId = UUID.randomUUID();
+		this.cseq = 1;
+		this.sipRegisterTimerTask = new SipRegisterTimerTask();
+	}
+
 	public SipRegister(SipUA sipUA, Register register, Address address) {
 		// instance-id: RFC5626. Used to set the registrarCallId
 		/*
@@ -29,13 +37,8 @@ public class SipRegister {
 		 * power cycle. This implementation assigns temporal UUID that stays the
 		 * same during UA's life cycle
 		 */
-
-		this.sipUA = sipUA;
-		this.register = register;
+		this(sipUA, register);
 		this.address = address;
-		this.registerCallId = UUID.randomUUID();
-		this.cseq = 1;
-		this.sipRegisterTimerTask = new SipRegisterTimerTask();
 	}
 
 	public Register getRegister() {

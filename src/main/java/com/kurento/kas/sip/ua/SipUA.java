@@ -60,7 +60,12 @@ import org.slf4j.LoggerFactory;
 import org.webrtc.PeerConnectionFactory;
 
 import android.app.AlarmManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 
 import com.kurento.kas.conference.Conference;
 import com.kurento.kas.sip.transaction.CInvite;
@@ -93,6 +98,8 @@ public class SipUA extends UA {
 
 	private static final String USER_AGENT = "KurentoAndroidUa/1.0.0";
 	private UserAgentHeader userAgentHeader;
+
+	private boolean sipStackEnabled = false;
 
 	// SIP factories
 	private SipFactory sipFactory;
@@ -154,9 +161,11 @@ public class SipUA extends UA {
 			this.noWakeupTimer = new AlarmUaTimer(context,
 					AlarmManager.ELAPSED_REALTIME);
 			createDefaultHandlers();
-			configureSipStack();
-
 			PeerConnectionFactory.initializeAndroidGlobals(context);
+
+			IntentFilter intentFilter = new IntentFilter();
+			intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+			context.registerReceiver(networkStatetReceiver, intentFilter);
 		} catch (Throwable t) {
 			log.error("SipUA initialization error", t);
 			throw new KurentoSipException("SipUA initialization error", t);
@@ -164,7 +173,7 @@ public class SipUA extends UA {
 	}
 
 	@Override
-	public void terminate() {
+	public synchronized void terminate() {
 		if (sipKeepAliveTimerTask != null) {
 			log.info("Stopping SIP keep alive");
 			wakeupTimer.cancel(sipKeepAliveTimerTask);
@@ -332,7 +341,7 @@ public class SipUA extends UA {
 	//
 	// ////////////////////////////
 
-	private void configureSipStack() throws KurentoSipException {
+	private synchronized void configureSipStack() throws KurentoSipException {
 		try {
 			terminateSipStack(); // Just in case
 
@@ -418,10 +427,11 @@ public class SipUA extends UA {
 						CHECK_TCP_CONNECTION_ALIVE_PERIOD);
 			}
 
+			sipStackEnabled = true;
+
 			// Re-register all local contacts
 			for (SipRegister reg : localUris.values())
-				register(reg.getRegister());
-
+				register(reg);
 		} catch (Throwable t) {
 			terminateSipStack();
 			throw new KurentoSipException("Unable to instantiate a SIP stack",
@@ -440,7 +450,7 @@ public class SipUA extends UA {
 		}
 	}
 
-	private void terminateSipStack() {
+	private synchronized void terminateSipStack() {
 		if (sipStack != null && sipProvider != null) {
 			log.info("Delete SIP listening points");
 
@@ -464,6 +474,8 @@ public class SipUA extends UA {
 			sipStack = null;
 			log.info("SIP stack terminated");
 		}
+
+		sipStackEnabled = false;
 	}
 
 	// ////////////////
@@ -472,7 +484,78 @@ public class SipUA extends UA {
 	//
 	// ////////////////
 
-	public void registerPersistentTcp(SipRegister sipReg, int expires) {
+	private synchronized void register(SipRegister sipReg) {
+		if (sipStackEnabled) {
+			Register reg = sipReg.getRegister();
+			try {
+				String contactAddressStr = "sip:" + reg.getUser() + "@"
+						+ localAddress.getHostAddress() + ":"
+						+ preferences.getSipLocalPort();
+				if (!ListeningPoint.UDP.equalsIgnoreCase(preferences
+						.getSipTransport()))
+					contactAddressStr += ";transport="
+							+ preferences.getSipTransport();
+
+				Address contactAddress = addressFactory
+						.createAddress(contactAddressStr);
+				sipReg.setAddress(contactAddress);
+
+				// Before registration remove previous timers
+				wakeupTimer.cancel(sipReg.getSipRegisterTimerTask());
+
+				if (ListeningPoint.TCP.equalsIgnoreCase(preferences
+						.getSipTransport())) {
+					registerPersistentTcp(sipReg, 0);
+				} else {
+					CRegister creg = new CRegister(this, sipReg,
+							preferences.getSipRegExpires());
+					creg.sendRequest();
+				}
+			} catch (ParseException e) {
+				log.error("Unable to create contact address", e);
+				registerHandler.onRegisterError(reg, new KurentoException(e));
+			} catch (KurentoSipException e) {
+				log.error("Unable to register", e);
+				registerHandler.onRegisterError(reg, new KurentoException(e));
+			} catch (KurentoException e) {
+				log.error("Unable to create CRegister", e);
+				registerHandler.onRegisterError(reg, e);
+			}
+		}
+	}
+
+	private synchronized void reRegister() {
+		InetAddress localAddress;
+		try {
+			localAddress = NetworkUtilities.getLocalInterface(null,
+					preferences.isSipOnlyIpv4());
+
+			if (localAddress.equals(this.localAddress)) {
+				for (SipRegister reg : localUris.values())
+					register(reg.getRegister());
+				if (ListeningPoint.TCP.equalsIgnoreCase(preferences
+						.getSipTransport())) {
+					try {
+						tcpSocketAddress = sipStack.obtainLocalAddress(
+								InetAddress.getAllByName(preferences
+										.getSipProxyServerAddress())[0],
+								preferences.getSipProxyServerPort(),
+								localAddress, 0);
+						log.debug("Socket address: " + tcpSocketAddress);
+					} catch (UnknownHostException e) {
+						log.warn("Unknown host", e);
+					} catch (IOException e) {
+						log.error("Error while obtaining local address");
+					}
+				}
+			}
+		} catch (IOException e) {
+			log.warn("Unable to get local address");
+		}
+	}
+
+	public synchronized void registerPersistentTcp(SipRegister sipReg,
+			int expires) {
 		try {
 			CRegisterPersistentTcp cunreg = new CRegisterPersistentTcp(this,
 					sipReg, expires);
@@ -488,7 +571,7 @@ public class SipUA extends UA {
 	}
 
 	@Override
-	public void register(Register register) {
+	public synchronized void register(Register register) {
 		// TODO Implement URI register
 		// TODO Create contact address on register "sip:userName@address:port"
 		// TODO Implement STUN in order to get public transport address. This
@@ -496,55 +579,23 @@ public class SipUA extends UA {
 		// TODO STUN enabled then use public, STUN disabled then use private.
 		// Do not check NAT type.
 
-		try {
-			log.debug("Request to register: " + register.getUri() + " for "
-					+ preferences.getSipRegExpires() + " seconds.");
+		log.debug("Request to register: " + register.getUri() + " for "
+				+ preferences.getSipRegExpires() + " seconds.");
 
-			SipRegister sipReg = localUris.get(register.getUri());
-			if (sipReg == null) {
-				log.debug("There is not a previous register for "
-						+ register.getUri() + ". Create new register.");
-
-				String contactAddressStr = "sip:" + register.getUser() + "@"
-						+ localAddress.getHostAddress() + ":"
-						+ preferences.getSipLocalPort();
-				if (!ListeningPoint.UDP.equalsIgnoreCase(preferences
-						.getSipTransport()))
-					contactAddressStr += ";transport="
-							+ preferences.getSipTransport();
-
-				Address contactAddress = addressFactory
-						.createAddress(contactAddressStr);
-				sipReg = new SipRegister(this, register, contactAddress);
-				log.debug("Add into localUris " + register.getUri());
-				localUris.put(register.getUri(), sipReg);
-			}
-
-			// Before registration remove previous timers
-			wakeupTimer.cancel(sipReg.getSipRegisterTimerTask());
-
-			if (ListeningPoint.TCP.equalsIgnoreCase(preferences
-					.getSipTransport())) {
-				registerPersistentTcp(sipReg, 0);
-			} else {
-				CRegister creg = new CRegister(this, sipReg,
-						preferences.getSipRegExpires());
-				creg.sendRequest();
-			}
-		} catch (ParseException e) {
-			log.error("Unable to create contact address", e);
-			registerHandler.onRegisterError(register, new KurentoException(e));
-		} catch (KurentoSipException e) {
-			log.error("Unable to register", e);
-			registerHandler.onRegisterError(register, new KurentoException(e));
-		} catch (KurentoException e) {
-			log.error("Unable to create CRegister", e);
-			registerHandler.onRegisterError(register, e);
+		SipRegister sipReg = localUris.get(register.getUri());
+		if (sipReg == null) {
+			log.debug("There is not a previous register for "
+					+ register.getUri() + ". Create new register.");
+			sipReg = new SipRegister(this, register);
+			log.debug("Add into localUris " + register.getUri());
+			localUris.put(register.getUri(), sipReg);
 		}
+
+		register(sipReg);
 	}
 
 	@Override
-	public void unregister(Register register) {
+	public synchronized void unregister(Register register) {
 		try {
 			log.debug("Request to unregister: " + register.getUri());
 
@@ -570,7 +621,7 @@ public class SipUA extends UA {
 	}
 
 	@Override
-	public Call dial(String fromUri, String remoteUri) {
+	public synchronized Call dial(String fromUri, String remoteUri) {
 		SipCall call = null;
 
 		if (remoteUri != null) {
@@ -848,9 +899,9 @@ public class SipUA extends UA {
 				listeningPoint.sendHeartbeat(proxyAddr, proxyPort);
 			} catch (IOException e) {
 				log.error("Unable to send SIP keep-alive message", e);
-				reconfigureSipStack();
 			}
 		}
+
 	}
 
 	private class CheckTCPConnectionAliveTimerTask extends KurentoUaTimerTask {
@@ -867,15 +918,51 @@ public class SipUA extends UA {
 						.equalsIgnoreCase(sa.toString())) {
 					log.debug("Socket address changed: " + tcpSocketAddress
 							+ " -> " + sa);
-					reconfigureSipStack();
+					reRegister();
 				}
 			} catch (UnknownHostException e) {
 				log.warn("Unknown host", e);
 			} catch (IOException e) {
-				log.error("Error while obtaining local address", e);
-				reconfigureSipStack();
+				log.warn("Error while obtaining local address");
 			}
 		}
+
 	}
+
+	private BroadcastReceiver networkStatetReceiver = new BroadcastReceiver() {
+
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			String action = intent.getAction();
+			log.debug("action received: " + action);
+			if (ConnectivityManager.CONNECTIVITY_ACTION.equals(action)) {
+				NetworkInfo ni = intent.getExtras()
+						.getParcelable("networkInfo");
+				log.debug("Connection Type: " + ni.getType() + "; State:"
+						+ ni.getState());
+
+				if (ni.getState().equals(NetworkInfo.State.CONNECTED)) {
+					log.debug("Network connected");
+					Thread thread = new Thread(new Runnable() {
+						@Override
+						public void run() {
+							reconfigureSipStack();
+						}
+					});
+					thread.start();
+				} else {
+					log.debug("Network not connected");
+					Thread thread = new Thread(new Runnable() {
+						@Override
+						public void run() {
+							terminate();
+						}
+					});
+					thread.start();
+				}
+			}
+		}
+
+	};
 
 }
