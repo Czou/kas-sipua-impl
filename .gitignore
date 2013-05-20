@@ -4,3 +4,5 @@ bin/
 target/
 .project
 project.properties
+.idea
+*iml
