@@ -1,15 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="preference_stun_server_address_default">demo.kurento.com</string>
-    <integer name="preference_stun_server_port_default">3478</integer>
-    <string name="preference_stun_server_password_default"></string>
-
     <!-- SIP Connection -->
-    <string name="preference_sip_only_ipv4_default">true</string> <!-- true | false -->
+    <bool name="preference_sip_only_ipv4_default">true</bool> <!-- true | false -->
     <string name="preference_sip_transport_default">UDP</string> <!-- UDP | TCP | TLS -->
 
-    <string name="preference_enable_sip_keep_alive_default">false</string> <!-- true | false -->
+    <bool name="preference_enable_sip_keep_alive_default">false</bool> <!-- true | false -->
     <integer name="preference_sip_keep_alive_seconds_default">300</integer>
 
     <!-- SIP Proxy Server -->
@@ -19,10 +15,5 @@
     <!-- Local SIP stack -->
     <integer name="preference_sip_local_port_default">6060</integer>
     <integer name="preference_sip_reg_expires_default">3600</integer>
-
-    <!-- Media -->
-    <string name="preference_video_direction_default">sendrecv</string> <!-- sendrecv | recvonly | sendonly | inactive -->
-    <string name="preference_audio_direction_default">sendrecv</string> <!-- sendrecv | recvonly | sendonly | inactive -->
-    <string name="preference_front_camera_default">false</string> <!-- true | false -->
 
 </resources>

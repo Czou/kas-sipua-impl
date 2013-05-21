@@ -27,8 +27,6 @@
 		<jain-sip-api.version>1.2</jain-sip-api.version>
 		<jain-sip-ri.version>1.2.139</jain-sip-ri.version>
 		<android-api.version>1.0.0-SNAPSHOT</android-api.version>
-		<kas-webrtc-jar.version>0.0.1-SNAPSHOT</kas-webrtc-jar.version>
-		<kas-webrtc-native.version>0.0.1-SNAPSHOT</kas-webrtc-native.version>
 
 		<!-- Plugins Versions -->
 		<android-maven-plugin.version>3.5.3</android-maven-plugin.version>
@@ -64,20 +62,8 @@
 			<groupId>com.kurento.kas</groupId>
 			<artifactId>android-api</artifactId>
 			<version>${android-api.version}</version>
+			<type>apklib</type>
 		</dependency>
-
-		<dependency>
-			<groupId>com.kurento.kas</groupId>
-			<artifactId>kas-webrtc-jar</artifactId>
-			<version>${kas-webrtc-jar.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.kurento.kas</groupId>
-			<artifactId>libjingle_peerconnection_so</artifactId>
-			<version>${kas-webrtc-native.version}</version>
-			<type>so</type>
-		</dependency>
-
 		<dependency>
 			<groupId>com.google.android</groupId>
 			<artifactId>android</artifactId>

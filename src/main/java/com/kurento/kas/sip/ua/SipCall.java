@@ -16,9 +16,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>
  */
 package com.kurento.kas.sip.ua;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import javax.sip.Dialog;
 import javax.sip.SipException;
 import javax.sip.address.Address;
@@ -27,24 +24,11 @@ import javax.sip.message.Response;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.webrtc.IceCandidate;
-import org.webrtc.MediaConstraints;
-import org.webrtc.MediaStream;
-import org.webrtc.PeerConnection;
-import org.webrtc.PeerConnection.IceConnectionState;
-import org.webrtc.PeerConnection.IceGatheringState;
-import org.webrtc.PeerConnection.SignalingState;
-import org.webrtc.PeerConnectionFactory;
-import org.webrtc.SdpObserver;
-import org.webrtc.SessionDescription;
-import org.webrtc.VideoCapturer;
-import org.webrtc.VideoSource;
 
 import com.kurento.kas.sip.transaction.CBye;
 import com.kurento.kas.sip.transaction.CCancel;
 import com.kurento.kas.sip.transaction.CTransaction;
 import com.kurento.kas.sip.transaction.STransaction;
-import com.kurento.kas.sip.ua.Preferences.Direction;
 import com.kurento.kas.ua.KurentoException;
 import com.kurento.kas.ua.impl.BaseCall;
 
@@ -75,10 +59,10 @@ public class SipCall extends BaseCall {
 	// Used to create outgoing calls
 	protected SipCall(SipUA sipUA, String fromUri, String toUri)
 			throws KurentoSipException {
+		super(sipUA.getContext());
 		this.sipUA = sipUA;
 		this.localUri = fromUri;
 		this.remoteUri = toUri;
-		createPeerConnection();
 	}
 
 	// Intended for incoming calls
@@ -112,8 +96,7 @@ public class SipCall extends BaseCall {
 			stateTransition(State.CONFIRMED);
 			try {
 				incomingInitiatingRequest.sendResponse(Response.OK,
-						peerConnection.getLocalDescription().description
-								.getBytes());
+						getLocalDescription());
 				incomingInitiatingRequest = null;
 			} catch (KurentoSipException e) {
 				// SIP failures are noti
@@ -248,25 +231,9 @@ public class SipCall extends BaseCall {
 
 	}
 
-	private void release() {
-		if (peerConnection != null) {
-			peerConnection.close();
-			// peerConnection.dispose(); //FIXME: test fails when detach thread
-			peerConnection = null;
-			localStream = null;
-			remoteStream = null;
-		}
-
-		if (capturer != null) {
-			capturer.dispose();
-			capturer = null;
-		}
-
-		// FIXME: fails
-		// if (peerConnectionFactory != null) {
-		// peerConnectionFactory.dispose();
-		// peerConnectionFactory = null;
-		// }
+	@Override
+	protected void release() {
+		super.release();
 	}
 
 	private void localCallCancel() {
@@ -307,158 +274,6 @@ public class SipCall extends BaseCall {
 		log.error("callFailed", e);
 		sipUA.getErrorHandler().onCallError(this, e);
 		terminatedCall(TerminateReason.ERROR);
-	}
-
-	// ////////////////////
-	//
-	// TRANSACTION SERVICES
-	//
-	// ////////////////////
-
-	public void addCreateSdpOfferObserver(CreateSdpOfferObserver observer) {
-		createSdpOfferObservers.add(observer);
-	}
-
-	public void removeCreateSdpOfferObserver(CreateSdpOfferObserver observer) {
-		createSdpOfferObservers.remove(observer);
-	}
-
-	public void createSdpOffer(final CreateSdpOfferObserver observer) {
-		MediaConstraints constraints = new MediaConstraints();
-
-		// FIXME: if OfferToReceiveVideo is false, native library crashes when
-		// the thread is detached
-		// Preferences pref = sipUA.getPreferences();
-		// Direction audioDirection = pref.getAudioDirection();
-		// if (Direction.SENDRECV.equals(audioDirection)
-		// || Direction.RECVONLY.equals(audioDirection))
-		// constraints.mandatory.add(new MediaConstraints.KeyValuePair(
-		// "OfferToReceiveAudio", "true"));
-		// else
-		// constraints.mandatory.add(new MediaConstraints.KeyValuePair(
-		// "OfferToReceiveAudio", "false"));
-		//
-		// Direction videoDirection = pref.getVideoDirection();
-		// if (Direction.SENDRECV.equals(videoDirection)
-		// || Direction.RECVONLY.equals(videoDirection))
-		// constraints.mandatory.add(new MediaConstraints.KeyValuePair(
-		// "OfferToReceiveVideo", "true"));
-		// else
-		// constraints.mandatory.add(new MediaConstraints.KeyValuePair(
-		// "OfferToReceiveVideo", "false"));
-
-		constraints.mandatory.add(new MediaConstraints.KeyValuePair(
-				"OfferToReceiveAudio", "true"));
-		constraints.mandatory.add(new MediaConstraints.KeyValuePair(
-				"OfferToReceiveVideo", "true"));
-
-		peerConnection.createOffer(new SdpObserver() {
-			@Override
-			public void onSuccess(SessionDescription sdp) {
-				final String description = sdp.description;
-				log.debug("createOffer onSuccess. sdp: " + description);
-				peerConnection.setLocalDescription(new SdpObserver() {
-					@Override
-					public void onSuccess(SessionDescription sdp) {
-						log.debug("setLocalDescription onSuccess. sdp: "
-								+ sdp.description);
-					}
-
-					@Override
-					public void onSuccess() {
-						log.debug("setLocalDescription onSuccess");
-					}
-
-					@Override
-					public void onFailure(String error) {
-						log.debug("setLocalDescription onFailure: " + error);
-						observer.onError(new KurentoException(error));
-					}
-				}, sdp);
-			}
-
-			@Override
-			public void onSuccess() {
-				log.debug("createOffer onSuccess");
-			}
-
-			@Override
-			public void onFailure(String error) {
-				log.debug("createOffer onFailure: " + error);
-				observer.onError(new KurentoException(error));
-			}
-		}, constraints);
-	}
-
-	public void addCreateSdpAnswerObserver(CreateSdpAnswerObserver observer) {
-		createSdpAnswerObservers.add(observer);
-	}
-
-	public void removeCreateSdpAnswerObserver(CreateSdpAnswerObserver observer) {
-		createSdpAnswerObservers.remove(observer);
-	}
-
-	public void createSdpAnswer(String sdpOffer,
-			final CreateSdpAnswerObserver observer) {
-		SessionDescription sdp = new SessionDescription(
-				SessionDescription.Type.OFFER, sdpOffer);
-		peerConnection.setRemoteDescription(new SdpObserver() {
-			@Override
-			public void onSuccess(SessionDescription sdp) {
-				log.debug("setRemoteDescription onSuccess. sdp: " + sdp);
-			}
-
-			@Override
-			public void onSuccess() {
-				log.debug("setRemoteDescription onSuccess");
-				MediaConstraints constraints = new MediaConstraints();
-				peerConnection.createAnswer(new SdpObserver() {
-					@Override
-					public void onSuccess(SessionDescription sdp) {
-						log.debug("createAnswer onSuccess. sdp: "
-								+ sdp.description);
-						peerConnection.setLocalDescription(new SdpObserver() {
-							@Override
-							public void onSuccess(SessionDescription sdp) {
-								log.debug("setLocalDescription onSuccess. sdp: "
-										+ sdp.description);
-							}
-
-							@Override
-							public void onSuccess() {
-								log.debug("setLocalDescription onSuccess");
-							}
-
-							@Override
-							public void onFailure(String error) {
-								log.debug("setLocalDescription onFailure: "
-										+ error);
-								observer.onError(new KurentoException(error));
-							}
-						}, sdp);
-					}
-
-					@Override
-					public void onSuccess() {
-						log.debug("createAnswer onSuccess");
-					}
-
-					@Override
-					public void onFailure(String error) {
-						log.debug("createAnswer onFailure: " + error);
-						observer.onError(new KurentoException(error));
-					}
-
-				}, constraints);
-			}
-
-			@Override
-			public void onFailure(String error) {
-				log.debug("setRemoteDescription onFailure: " + error);
-				observer.onError(new KurentoException(error));
-			}
-
-		}, sdp);
 	}
 
 	// ////////////////////
@@ -640,133 +455,6 @@ public class SipCall extends BaseCall {
 		if (request2Terminate) {
 			// Call has been canceled while building SDP
 			localCallCancel();
-		}
-	}
-
-	// ////////////////////
-	//
-	// MEDIA MANAGEMENT
-	//
-	// ////////////////////
-
-	public PeerConnection getPeerConnection() {
-		return peerConnection;
-	}
-
-	private void createPeerConnection() {
-		if (peerConnection == null) {
-			Preferences pref = sipUA.getPreferences();
-			peerConnectionFactory = new PeerConnectionFactory();
-
-			String stunServerAddress = pref.getStunServerAdress();
-			int stunServerPort = pref.getStunServerPort();
-			String stunServerPassword = pref.getStunServerPassword();
-
-			List<PeerConnection.IceServer> iceServers = new ArrayList<PeerConnection.IceServer>();
-			if (!"".equals(stunServerAddress)) {
-				log.debug("stun server: " + "stun:" + stunServerAddress + ":"
-						+ stunServerPort);
-				PeerConnection.IceServer iceServer = new PeerConnection.IceServer(
-						"stun:" + stunServerAddress + ":" + stunServerPort,
-						stunServerPassword);
-				iceServers.add(iceServer);
-			}
-
-			peerConnection = peerConnectionFactory.createPeerConnection(
-					iceServers, new MediaConstraints(),
-					new PeerConnection.Observer() {
-						@Override
-						public void onSignalingChange(SignalingState newState) {
-							log.debug("peerConnection onSignalingChange: "
-									+ newState);
-						}
-
-						@Override
-						public void onRemoveStream(MediaStream stream) {
-							log.debug("peerConnection onRemoveStream");
-						}
-
-						@Override
-						public void onIceGatheringChange(
-								IceGatheringState newState) {
-							log.debug("peerConnection onIceGatheringChange: "
-									+ newState);
-							if (IceGatheringState.COMPLETE.equals(newState)) {
-								for (CreateSdpOfferObserver o : createSdpOfferObservers)
-									o.onSdpOfferCreated(peerConnection
-											.getLocalDescription().description);
-								for (CreateSdpAnswerObserver o : createSdpAnswerObservers)
-									o.onSdpAnswerCreated(peerConnection
-											.getLocalDescription().description);
-							}
-
-						}
-
-						@Override
-						public void onIceConnectionChange(
-								IceConnectionState newState) {
-							log.debug("peerConnection onIceConnectionChange: "
-									+ newState);
-						}
-
-						@Override
-						public void onIceCandidate(IceCandidate candidate) {
-							log.debug("peerConnection onIceCandidate: "
-									+ candidate.sdp);
-						}
-
-						@Override
-						public void onError() {
-							log.debug("peerConnection onError");
-						}
-
-						@Override
-						public void onAddStream(MediaStream stream) {
-							log.debug("peerConnection onAddStream");
-							remoteStream = stream;
-						}
-					});
-
-			localStream = peerConnectionFactory
-					.createLocalMediaStream("ARDAMS");
-
-			// TODO: manage if audioDirection and videoDirection both are
-			// INACTIVE because the SDP is not generated
-			Direction audioDirection = pref.getAudioDirection();
-			log.debug("audioDirection: " + audioDirection);
-			if (Direction.SENDRECV.equals(audioDirection)
-					|| Direction.SENDONLY.equals(audioDirection)) {
-				audioTrack = peerConnectionFactory.createAudioTrack("ARDAMSa0");
-				localStream.addTrack(audioTrack);
-			}
-
-			Direction videoDirection = pref.getVideoDirection();
-			log.debug("videoDirection: " + videoDirection);
-			if (Direction.SENDRECV.equals(videoDirection)
-					|| Direction.SENDONLY.equals(videoDirection)) {
-
-				if (pref.isFrontCamera()) {
-					log.debug("create front camera");
-					capturer = VideoCapturer
-							.create("Camera 1, Facing front, Orientation 270");
-				}
-
-				if (capturer == null) {
-					log.debug("create back camera");
-					capturer = VideoCapturer
-							.create("Camera 0, Facing back, Orientation 90");
-				}
-
-				if (capturer != null) {
-					VideoSource videoSource = peerConnectionFactory
-							.createVideoSource(capturer, new MediaConstraints());
-					videoTrack = peerConnectionFactory.createVideoTrack(
-							"ARDAMSv0", videoSource);
-					localStream.addTrack(videoTrack);
-				}
-			}
-
-			peerConnection.addStream(localStream, new MediaConstraints());
 		}
 	}
 }

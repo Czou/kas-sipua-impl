@@ -30,14 +30,13 @@ import javax.sip.message.Response;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.webrtc.SdpObserver;
-import org.webrtc.SessionDescription;
 
 import com.kurento.kas.sip.ua.KurentoSipException;
 import com.kurento.kas.sip.ua.SipCall;
 import com.kurento.kas.sip.ua.SipUA;
 import com.kurento.kas.ua.KurentoException;
 import com.kurento.kas.ua.impl.BaseCall.CreateSdpOfferObserver;
+import com.kurento.kas.ua.impl.BaseCall.SetRemoteSdpObserver;
 
 public class CInvite extends CTransaction {
 
@@ -223,14 +222,8 @@ public class CInvite extends CTransaction {
 	}
 
 	private void processSdpAnswer(byte[] rawContent) {
-		SessionDescription sdp = new SessionDescription(
-				SessionDescription.Type.ANSWER, new String(rawContent));
-		call.getPeerConnection().setRemoteDescription(new SdpObserver() {
-			@Override
-			public void onSuccess(SessionDescription arg0) {
-				// Nothing to do
-			}
 
+		call.setRemoteSdp(new String(rawContent), new SetRemoteSdpObserver() {
 			@Override
 			public void onSuccess() {
 				try {
@@ -244,11 +237,10 @@ public class CInvite extends CTransaction {
 			}
 
 			@Override
-			public void onFailure(String error) {
-				sipUA.getErrorHandler().onCallError(call,
-						new KurentoException(error));
+			public void onError(KurentoException error) {
+				sipUA.getErrorHandler().onCallError(call, error);
 			}
-		}, sdp);
+		});
 	}
 
 }

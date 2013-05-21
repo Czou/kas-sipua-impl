@@ -111,7 +111,7 @@ public class SipUA extends UA {
 	// Sip Stack
 	private SipProvider sipProvider;
 	private SipStackExt sipStack;
-	private SipListenerImpl sipListenerImpl = new SipListenerImpl();
+	private final SipListenerImpl sipListenerImpl = new SipListenerImpl();
 
 	private AlarmUaTimer wakeupTimer;
 	private AlarmUaTimer noWakeupTimer;
@@ -135,12 +135,15 @@ public class SipUA extends UA {
 	private CallRingingHandler callRingingHandler;
 	private CallTerminatedHandler callTerminatedHandler;
 
-	private Map<String, SipRegister> localUris = new ConcurrentHashMap<String, SipRegister>();
+	private final Map<String, SipRegister> localUris = new ConcurrentHashMap<String, SipRegister>();
 
 	private Preferences preferences;
+	private final Context context;
 
 	public SipUA(Context context) throws KurentoSipException {
 		super(context);
+
+		this.context = context;
 
 		try {
 			preferences = new Preferences(context);
@@ -171,6 +174,10 @@ public class SipUA extends UA {
 			log.error("SipUA initialization error", t);
 			throw new KurentoSipException("SipUA initialization error", t);
 		}
+	}
+
+	protected Context getContext() {
+		return context;
 	}
 
 	@Override
@@ -882,9 +889,9 @@ public class SipUA extends UA {
 
 	private class SipKeepAliveTimerTask extends KurentoUaTimerTask {
 
-		private ListeningPointExt listeningPoint;
-		private String proxyAddr;
-		private int proxyPort;
+		private final ListeningPointExt listeningPoint;
+		private final String proxyAddr;
+		private final int proxyPort;
 
 		public SipKeepAliveTimerTask(ListeningPoint listeningPoint,
 				Preferences preferences) {
@@ -930,7 +937,7 @@ public class SipUA extends UA {
 
 	}
 
-	private BroadcastReceiver networkStatetReceiver = new BroadcastReceiver() {
+	private final BroadcastReceiver networkStatetReceiver = new BroadcastReceiver() {
 
 		@Override
 		public void onReceive(Context context, Intent intent) {
