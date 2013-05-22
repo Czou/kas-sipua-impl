@@ -58,7 +58,7 @@ public class NetworkUtilities {
 					if (inetAddress.isLinkLocalAddress()) {
 						continue;
 					}
-					if (inetAddress.isReachable(3000)) {
+					if (inetAddress.isReachable(30000)) {
 						// Return only reachable interfaces
 						return inetAddress;
 					}
