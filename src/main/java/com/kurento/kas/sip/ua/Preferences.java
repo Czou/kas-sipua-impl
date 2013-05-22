@@ -103,6 +103,12 @@ public class Preferences extends com.kurento.kas.media.impl.Preferences {
 		return sipTransport;
 	}
 
+	public boolean isPersistentConnection() {
+		// TODO: add preference to enable or disable persistent connection
+		return ListeningPoint.TCP.equalsIgnoreCase(sipTransport)
+				|| ListeningPoint.TLS.equalsIgnoreCase(sipTransport);
+	}
+
 	public boolean isEnableSipKeepAlive() {
 		return enableSipKeepAlive;
 	}

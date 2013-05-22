@@ -18,8 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>
 package com.kurento.kas.sip.ua;
 
 import gov.nist.javax.sip.ListeningPointExt;
-import gov.nist.javax.sip.SipStackExt;
-import gov.nist.javax.sip.SipStackImpl;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -110,7 +108,7 @@ public class SipUA extends UA {
 
 	// Sip Stack
 	private SipProvider sipProvider;
-	private SipStackExt sipStack;
+	private KurentoSipStackImpl sipStack;
 	private final SipListenerImpl sipListenerImpl = new SipListenerImpl();
 
 	private AlarmUaTimer wakeupTimer;
@@ -381,6 +379,18 @@ public class SipUA extends UA {
 																			// default
 			jainProps.setProperty("gov.nist.javax.sip.THREAD_POOL_SIZE", "100");
 
+			if (ListeningPoint.TLS.equalsIgnoreCase(preferences
+					.getSipTransport()))
+				jainProps.setProperty(
+						"gov.nist.javax.sip.TLS_CLIENT_PROTOCOLS",
+						"SSLv3, TLSv1"); // SSLv2Hello not supported on Android
+
+			// Problems with introspection in Android. FIXED creating a subclass
+			// of SipStackImpl (KurentoSipStackImpl) and implementing
+			// KurentoSslNetworkLayer
+			// String path = "com.kurento.kas.sip.ua.KurentoSslNetworkLayer";
+			// jainProps.setProperty("gov.nist.javax.sip.NETWORK_LAYER", path);
+
 			log.info("Stack properties: " + jainProps);
 
 			// Create SIP STACK
@@ -404,8 +414,7 @@ public class SipUA extends UA {
 			// Add User Agent as listener for the SIP provider
 			sipProvider.addSipListener(sipListenerImpl);
 
-			if (ListeningPoint.TCP.equalsIgnoreCase(preferences
-					.getSipTransport())) {
+			if (preferences.isPersistentConnection()) {
 				// rfc5626 3.5.1. CRLF Keep-Alive Technique
 				// Only with connection-oriented
 				if (sipKeepAliveTimerTask != null) {
@@ -511,8 +520,7 @@ public class SipUA extends UA {
 				// Before registration remove previous timers
 				wakeupTimer.cancel(sipReg.getSipRegisterTimerTask());
 
-				if (ListeningPoint.TCP.equalsIgnoreCase(preferences
-						.getSipTransport())) {
+				if (preferences.isPersistentConnection()) {
 					registerPersistentTcp(sipReg, 0);
 				} else {
 					CRegister creg = new CRegister(this, sipReg,
@@ -541,8 +549,7 @@ public class SipUA extends UA {
 			if (localAddress.equals(this.localAddress)) {
 				for (SipRegister reg : localUris.values())
 					register(reg.getRegister());
-				if (ListeningPoint.TCP.equalsIgnoreCase(preferences
-						.getSipTransport())) {
+				if (preferences.isPersistentConnection()) {
 					try {
 						tcpSocketAddress = sipStack.obtainLocalAddress(
 								InetAddress.getAllByName(preferences
