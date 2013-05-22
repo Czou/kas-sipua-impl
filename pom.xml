@@ -26,7 +26,7 @@
 		<slf4j-android.version>1.6.1-RC1</slf4j-android.version>
 		<jain-sip-api.version>1.2</jain-sip-api.version>
 		<jain-sip-ri.version>1.2.139</jain-sip-ri.version>
-		<android-api.version>1.0.0-SNAPSHOT</android-api.version>
+		<kas-api.version>1.0.0-SNAPSHOT</kas-api.version>
 
 		<!-- Plugins Versions -->
 		<android-maven-plugin.version>3.5.3</android-maven-plugin.version>
@@ -60,8 +60,8 @@
 	<dependencies>
 		<dependency>
 			<groupId>com.kurento.kas</groupId>
-			<artifactId>android-api</artifactId>
-			<version>${android-api.version}</version>
+			<artifactId>kas-api</artifactId>
+			<version>${kas-api.version}</version>
 			<type>apklib</type>
 		</dependency>
 		<dependency>
