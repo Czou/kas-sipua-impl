@@ -354,9 +354,6 @@ public class SipUA extends UA {
 			localAddress = NetworkUtilities.getLocalInterface(null,
 					preferences.isSipOnlyIpv4());
 
-			// TODO Find configuration that supports TLS / DTLS
-			// TODO Find configuration that supports TCP with persistent
-			// connection
 			log.info("starting JAIN-SIP stack initializacion ...");
 
 			Properties jainProps = new Properties();
@@ -427,7 +424,6 @@ public class SipUA extends UA {
 					localAddress.getHostAddress(),
 					preferences.getSipLocalPort(),
 					preferences.getSipTransport());
-			// listeningPoint.setSentBy(publicAddress + ":" + publicPort);
 
 			// Create SIP PROVIDER and add listening points
 			sipProvider = sipStack.createSipProvider(listeningPoint);
@@ -608,8 +604,6 @@ public class SipUA extends UA {
 
 	@Override
 	public synchronized void register(Register register) {
-		// TODO Implement URI register
-		// TODO Create contact address on register "sip:userName@address:port"
 		// TODO Implement STUN in order to get public transport address. This
 		// is not accurate at all, but at least give the chance
 		// TODO STUN enabled then use public, STUN disabled then use private.
