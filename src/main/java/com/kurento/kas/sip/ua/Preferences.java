@@ -13,6 +13,7 @@ public class Preferences extends com.kurento.kas.media.impl.Preferences {
 	// SIP Connection
 	public static final String SIP_ONLY_IPV4 = "SIP_ONLY_IPV4";
 	public static final String SIP_TRANSPORT = "TRANSPORT";
+	public static final String SIP_PERSISTENT_CONNECTION = "SIP_PERSISTENT_CONNECTION";
 
 	public static final String ENABLE_SIP_KEEP_ALIVE = "ENABLE_SIP_KEEP_ALIVE";
 	public static final String SIP_KEEP_ALIVE_SECONDS = "SIP_KEEP_ALIVE_SECONDS";
@@ -27,6 +28,7 @@ public class Preferences extends com.kurento.kas.media.impl.Preferences {
 
 	private final boolean sipOnlyIpv4;
 	private String sipTransport;
+	private final boolean persistentConnection;
 
 	private final boolean enableSipKeepAlive;
 	private final int sipKeepAliveSeconds;
@@ -57,6 +59,11 @@ public class Preferences extends com.kurento.kas.media.impl.Preferences {
 		else
 			throw new KurentoSipException(SIP_TRANSPORT
 					+ " must be UDP, TCP or TLS.");
+
+		persistentConnection = pref.getBoolean(
+				SIP_PERSISTENT_CONNECTION,
+				context.getResources().getBoolean(
+						R.bool.preference_sip_persistent_connection_default));
 
 		enableSipKeepAlive = pref.getBoolean(
 				ENABLE_SIP_KEEP_ALIVE,
@@ -104,9 +111,9 @@ public class Preferences extends com.kurento.kas.media.impl.Preferences {
 	}
 
 	public boolean isPersistentConnection() {
-		// TODO: add preference to enable or disable persistent connection
-		return ListeningPoint.TCP.equalsIgnoreCase(sipTransport)
-				|| ListeningPoint.TLS.equalsIgnoreCase(sipTransport);
+		return persistentConnection
+				&& (ListeningPoint.TCP.equalsIgnoreCase(sipTransport) || ListeningPoint.TLS
+						.equalsIgnoreCase(sipTransport));
 	}
 
 	public boolean isEnableSipKeepAlive() {

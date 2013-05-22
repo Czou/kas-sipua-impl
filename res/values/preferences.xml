@@ -4,6 +4,7 @@
     <!-- SIP Connection -->
     <bool name="preference_sip_only_ipv4_default">true</bool> <!-- true | false -->
     <string name="preference_sip_transport_default">UDP</string> <!-- UDP | TCP | TLS -->
+    <bool name="preference_sip_persistent_connection_default">true</bool> <!-- true | false --> <!-- Only for TCP and TLS -->
 
     <bool name="preference_enable_sip_keep_alive_default">false</bool> <!-- true | false -->
     <integer name="preference_sip_keep_alive_seconds_default">300</integer>
