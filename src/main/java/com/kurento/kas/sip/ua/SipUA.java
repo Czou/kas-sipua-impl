@@ -27,7 +27,9 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArraySet;
 
 import javax.sip.ClientTransaction;
 import javax.sip.Dialog;
@@ -138,6 +140,7 @@ public class SipUA extends UA {
 	private CallTerminatedHandler callTerminatedHandler;
 
 	private final Map<String, SipRegister> localUris = new ConcurrentHashMap<String, SipRegister>();
+	final Set<Call> activedCalls = new CopyOnWriteArraySet<Call>();
 
 	private Preferences preferences;
 	private final Context context;
@@ -191,6 +194,11 @@ public class SipUA extends UA {
 	public synchronized void terminate() {
 		sharedPreferences
 				.unregisterOnSharedPreferenceChangeListener(onSharedPreferenceChangeListener);
+
+		for (Call call : activedCalls) {
+			call.hangup();
+			activedCalls.remove(call);
+		}
 
 		// Unregister all local contacts
 		for (SipRegister reg : localUris.values())
@@ -690,6 +698,9 @@ public class SipUA extends UA {
 			errorHandler.onCallError(null, new KurentoException(
 					"Request to call NULL uri."));
 		}
+
+		if (call != null)
+			activedCalls.add(call);
 
 		return call;
 	}

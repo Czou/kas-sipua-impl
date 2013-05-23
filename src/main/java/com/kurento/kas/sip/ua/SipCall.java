@@ -115,6 +115,7 @@ public class SipCall extends BaseCall {
 	public void hangup(RejectCode code) {
 		// Label this call to be terminated as soon as possible
 		request2Terminate = true;
+		sipUA.activedCalls.remove(this);
 
 		// Check valid states where a call can be canceled
 		if (State.IDLE.equals(state)) {
@@ -287,6 +288,7 @@ public class SipCall extends BaseCall {
 		this.reason = reason;
 		stateTransition(State.TERMINATED);
 		release();
+		sipUA.activedCalls.remove(this);
 		sipUA.getCallTerminatedHandler().onTerminate(this);
 	}
 
@@ -379,6 +381,7 @@ public class SipCall extends BaseCall {
 			localUri = localAddress.getURI().toString();
 			remoteUri = remoteAddress.getURI().toString();
 
+			sipUA.activedCalls.add(this);
 			// Notify the incoming call to EndPoint controllers and waits for
 			// response (accept or reject)
 			sipUA.getCallRingingHandler().onRinging(this);
