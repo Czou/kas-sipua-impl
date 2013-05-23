@@ -36,8 +36,8 @@ import com.kurento.kas.sip.ua.SipUA;
 
 public abstract class STransaction extends Transaction {
 
-	static Logger log = LoggerFactory.getLogger(STransaction.class
-			.getSimpleName());
+	private static final Logger log = LoggerFactory
+			.getLogger(STransaction.class.getSimpleName());
 
 	ServerTransaction serverTransaction;
 	Request request;

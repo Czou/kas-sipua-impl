@@ -30,7 +30,7 @@ import com.kurento.kas.ua.impl.BaseCall.CreateSdpAnswerObserver;
 
 public class SInvite extends STransaction {
 
-	private static Logger log = LoggerFactory.getLogger(SInvite.class
+	private static final Logger log = LoggerFactory.getLogger(SInvite.class
 			.getSimpleName());
 
 	public SInvite(SipUA sipUA, ServerTransaction serverTransaction)

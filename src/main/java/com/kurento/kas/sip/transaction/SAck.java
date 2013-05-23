@@ -27,7 +27,7 @@ import com.kurento.kas.sip.ua.SipUA;
 
 public class SAck extends STransaction {
 
-	private static Logger log = LoggerFactory.getLogger(SAck.class
+	private static final Logger log = LoggerFactory.getLogger(SAck.class
 			.getSimpleName());
 
 	// Process ACK to a successful INVITE

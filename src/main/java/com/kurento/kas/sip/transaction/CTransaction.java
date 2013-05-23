@@ -58,8 +58,8 @@ public abstract class CTransaction extends Transaction {
 	Request request;
 
 	// General attributes
-	final static Logger log = LoggerFactory.getLogger(CTransaction.class
-			.getSimpleName());
+	private static final Logger log = LoggerFactory
+			.getLogger(CTransaction.class.getSimpleName());
 
 	String method;
 	Dialog dialog;
@@ -210,8 +210,7 @@ public abstract class CTransaction extends Transaction {
 		List<ViaHeader> viaHeaders = new ArrayList<ViaHeader>();
 		ViaHeader viaHeader = sipUA.getHeaderFactory().createViaHeader(
 				sipUA.getLocalAddress(), sipUA.getLocalPort(),
-				sipUA.getPreferences().getSipTransport(),
-				getNewRandomBranch());
+				sipUA.getPreferences().getSipTransport(), getNewRandomBranch());
 
 		viaHeader.setRPort();
 		// add via headers

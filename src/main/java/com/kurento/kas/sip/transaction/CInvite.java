@@ -40,7 +40,7 @@ import com.kurento.kas.ua.impl.BaseCall.SetRemoteSdpObserver;
 
 public class CInvite extends CTransaction {
 
-	private final static Logger log = LoggerFactory.getLogger(CInvite.class
+	private static final Logger log = LoggerFactory.getLogger(CInvite.class
 			.getSimpleName());
 
 	public CInvite(SipUA sipUA, SipCall call) throws KurentoSipException {
