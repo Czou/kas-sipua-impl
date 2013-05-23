@@ -694,6 +694,31 @@ public class SipUA extends UA {
 		return call;
 	}
 
+	@Override
+	public Call dial(String remoteUri) {
+		if (localUris.size() == 0)
+			return null;
+
+		String localUri = localUris.keySet().iterator().next();
+		return dial(localUri, remoteUri);
+	}
+
+	@Override
+	public Conference createConference(ConferenceHandler handler) {
+		throw new RuntimeException("Not implemented");
+	}
+
+	@Override
+	public Conference getConference(String conferenceUri,
+			ConferenceHandler handler) {
+		throw new RuntimeException("Not implemented");
+	}
+
+	@Override
+	public Conference getConference(Call call, ConferenceHandler handler) {
+		throw new RuntimeException("Not implemented");
+	}
+
 	private class SipListenerImpl implements SipListener {
 
 		@Override
@@ -1018,31 +1043,6 @@ public class SipUA extends UA {
 		}
 
 	};
-
-	@Override
-	public Call dial(String remoteUri) {
-		if (localUris.size() == 0)
-			return null;
-
-		String localUri = localUris.keySet().iterator().next();
-		return dial(localUri, remoteUri);
-	}
-
-	@Override
-	public Conference createConference(ConferenceHandler handler) {
-		throw new RuntimeException("Not implemented");
-	}
-
-	@Override
-	public Conference getConference(String conferenceUri,
-			ConferenceHandler handler) {
-		throw new RuntimeException("Not implemented");
-	}
-
-	@Override
-	public Conference getConference(Call call, ConferenceHandler handler) {
-		throw new RuntimeException("Not implemented");
-	}
 
 	private OnSharedPreferenceChangeListener onSharedPreferenceChangeListener = new OnSharedPreferenceChangeListener() {
 		@Override
