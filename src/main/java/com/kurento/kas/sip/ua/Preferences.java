@@ -33,7 +33,7 @@ public class Preferences {
 	private final Context context;
 	private final SharedPreferences pref;
 
-	protected Preferences(Context context) {
+	Preferences(Context context) {
 		this.context = context;
 		pref = PreferenceManager.getDefaultSharedPreferences(context);
 	}
