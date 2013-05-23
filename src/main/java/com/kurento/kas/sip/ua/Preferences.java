@@ -8,7 +8,7 @@ import android.preference.PreferenceManager;
 
 import com.kurento.kas.sip.R;
 
-public class Preferences extends com.kurento.kas.media.impl.Preferences {
+public class Preferences {
 
 	// SIP Connection
 	public static final String SIP_ONLY_IPV4 = "SIP_ONLY_IPV4";
@@ -48,8 +48,6 @@ public class Preferences extends com.kurento.kas.media.impl.Preferences {
 	private final int sipRegExpires;
 
 	protected Preferences(Context context) throws KurentoSipException {
-		super(context);
-
 		SharedPreferences pref = PreferenceManager
 				.getDefaultSharedPreferences(context);
 
