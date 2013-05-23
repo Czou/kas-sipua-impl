@@ -62,8 +62,11 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
+import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.preference.PreferenceManager;
 
 import com.kurento.kas.conference.Conference;
 import com.kurento.kas.conference.ConferenceHandler;
@@ -109,6 +112,7 @@ public class SipUA extends UA {
 	// Sip Stack
 	private SipProvider sipProvider;
 	private KurentoSipStackImpl sipStack;
+	private ListeningPoint listeningPoint;
 	private final SipListenerImpl sipListenerImpl = new SipListenerImpl();
 
 	private AlarmUaTimer wakeupTimer;
@@ -137,11 +141,16 @@ public class SipUA extends UA {
 
 	private Preferences preferences;
 	private final Context context;
+	private final SharedPreferences sharedPreferences;
 
 	public SipUA(Context context) throws KurentoSipException {
 		super(context);
 
 		this.context = context;
+		sharedPreferences = PreferenceManager
+				.getDefaultSharedPreferences(context);
+		sharedPreferences
+				.registerOnSharedPreferenceChangeListener(onSharedPreferenceChangeListener);
 
 		try {
 			preferences = new Preferences(context);
@@ -180,15 +189,12 @@ public class SipUA extends UA {
 
 	@Override
 	public synchronized void terminate() {
-		if (sipKeepAliveTimerTask != null) {
-			log.info("Stopping SIP keep alive");
-			wakeupTimer.cancel(sipKeepAliveTimerTask);
-		}
+		sharedPreferences
+				.unregisterOnSharedPreferenceChangeListener(onSharedPreferenceChangeListener);
 
-		if (checkTcpConnectionAliveTimerTask != null) {
-			log.info("Stopping TCP connection alive");
-			noWakeupTimer.cancel(checkTcpConnectionAliveTimerTask);
-		}
+		// Unregister all local contacts
+		for (SipRegister reg : localUris.values())
+			unregister(reg.getRegister());
 
 		terminateSipStack();
 	}
@@ -420,7 +426,7 @@ public class SipUA extends UA {
 			log.info("Create listening point at: " + localAddress + ":"
 					+ preferences.getSipLocalPort() + "/"
 					+ preferences.getSipTransport());
-			ListeningPoint listeningPoint = sipStack.createListeningPoint(
+			listeningPoint = sipStack.createListeningPoint(
 					localAddress.getHostAddress(),
 					preferences.getSipLocalPort(),
 					preferences.getSipTransport());
@@ -438,13 +444,6 @@ public class SipUA extends UA {
 					// Disable keep alive if already active
 					wakeupTimer.cancel(sipKeepAliveTimerTask);
 				}
-				if (preferences.isEnableSipKeepAlive()) {
-					log.info("Using SIP keep alive");
-					sipKeepAliveTimerTask = new SipKeepAliveTimerTask(
-							listeningPoint, preferences);
-					long period = preferences.getSipKeepAliveSeconds() * 1000;
-					wakeupTimer.schedule(sipKeepAliveTimerTask, period, period);
-				}
 
 				tcpSocketAddress = sipStack.obtainLocalAddress(
 						InetAddress.getAllByName(preferences
@@ -452,14 +451,13 @@ public class SipUA extends UA {
 								.getSipProxyServerPort(), localAddress, 0);
 				log.debug("Socket address: " + tcpSocketAddress);
 
-				if (sipKeepAliveTimerTask != null)
-					noWakeupTimer.cancel(checkTcpConnectionAliveTimerTask);
-
 				checkTcpConnectionAliveTimerTask = new CheckTCPConnectionAliveTimerTask();
 				noWakeupTimer.schedule(checkTcpConnectionAliveTimerTask,
 						CHECK_TCP_CONNECTION_ALIVE_PERIOD,
 						CHECK_TCP_CONNECTION_ALIVE_PERIOD);
 			}
+
+			configureSipKeepAlive();
 
 			sipStackEnabled = true;
 
@@ -485,6 +483,16 @@ public class SipUA extends UA {
 	}
 
 	private synchronized void terminateSipStack() {
+		if (sipKeepAliveTimerTask != null) {
+			log.info("Stop SIP keep alive");
+			wakeupTimer.cancel(sipKeepAliveTimerTask);
+		}
+
+		if (checkTcpConnectionAliveTimerTask != null) {
+			log.info("Stop checking TCP connection alive");
+			noWakeupTimer.cancel(checkTcpConnectionAliveTimerTask);
+		}
+
 		if (sipStack != null && sipProvider != null) {
 			log.info("Delete SIP listening points");
 
@@ -510,6 +518,22 @@ public class SipUA extends UA {
 		}
 
 		sipStackEnabled = false;
+	}
+
+	private void configureSipKeepAlive() {
+		if (sipKeepAliveTimerTask != null) {
+			log.info("Stop SIP keep alive");
+			wakeupTimer.cancel(sipKeepAliveTimerTask);
+		}
+
+		if (listeningPoint != null && preferences.isPersistentConnection()
+				&& preferences.isEnableSipKeepAlive()) {
+			log.info("Using SIP keep alive");
+			sipKeepAliveTimerTask = new SipKeepAliveTimerTask(listeningPoint,
+					preferences);
+			long period = preferences.getSipKeepAliveSeconds() * 1000;
+			wakeupTimer.schedule(sipKeepAliveTimerTask, period, period);
+		}
 	}
 
 	// ////////////////
@@ -1019,5 +1043,27 @@ public class SipUA extends UA {
 	public Conference getConference(Call call, ConferenceHandler handler) {
 		throw new RuntimeException("Not implemented");
 	}
+
+	private OnSharedPreferenceChangeListener onSharedPreferenceChangeListener = new OnSharedPreferenceChangeListener() {
+		@Override
+		public void onSharedPreferenceChanged(
+				SharedPreferences sharedPreferences, String key) {
+			log.info("Preference " + key + " has changed.");
+			if (Preferences.SIP_ONLY_IPV4.equals(key)
+					|| Preferences.SIP_TRANSPORT.equals(key)
+					|| Preferences.SIP_PERSISTENT_CONNECTION.equals(key)
+					|| Preferences.SIP_TRUST_ANY_TLS_CONNECTION.equals(key)
+					|| Preferences.SIP_PROXY_SERVER_ADDRESS.equals(key)
+					|| Preferences.SIP_PROXY_SERVER_PORT.equals(key)
+					|| Preferences.SIP_LOCAL_PORT.equals(key)) {
+				reconfigureSipStack();
+			} else if (Preferences.SIP_REG_EXPIRES.equals(key)) {
+				reRegister();
+			} else if (Preferences.ENABLE_SIP_KEEP_ALIVE.equals(key)
+					|| Preferences.SIP_KEEP_ALIVE_SECONDS.equals(key)) {
+				configureSipKeepAlive();
+			}
+		}
+	};
 
 }
