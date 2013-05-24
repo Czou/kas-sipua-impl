@@ -2,6 +2,7 @@
 .settings/
 bin/
 target/
+/gen
 .project
 project.properties
 .idea
