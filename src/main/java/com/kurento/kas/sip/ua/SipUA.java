@@ -394,7 +394,28 @@ public class SipUA extends UA {
 			log.info("Stack properties: " + jainProps);
 
 			// Create SIP STACK
-			sipStack = new SipStackImpl(jainProps);
+			sipStack = new KurentoSipStackImpl(context, jainProps);
+
+			if (ListeningPoint.TLS.equalsIgnoreCase(preferences
+					.getSipTransport())) {
+				try {
+					if (preferences.isSipTrustAnyTlsConnection()) {
+						sipStack.setNetworkLayer(new KurentoSslNetworkLayer());
+					} else {
+						String truststoreRawResName = preferences
+								.getSipTlsTruststoreRawResName();
+						String truststorePassord = preferences
+								.getSipTlsTruststorePassword();
+						preferences.getSipTlsTruststorePassword();
+						sipStack.setNetworkLayer(new KurentoSslNetworkLayer(
+								context, truststoreRawResName,
+								truststorePassord));
+					}
+				} catch (Exception e) {
+					log.error("could not instantiate SSL networking", e);
+					throw e;
+				}
+			}
 			// TODO get socket from SipStackExt to perform STUN test
 			// TODO Verify socket transport to see if it is compatible with STUN
 

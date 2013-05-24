@@ -9,6 +9,11 @@
     <bool name="preference_enable_sip_keep_alive_default">false</bool> <!-- true | false -->
     <integer name="preference_sip_keep_alive_seconds_default">300</integer>
 
+    <!-- TLS -->
+    <bool name="preference_sip_trust_any_tls_connection">true</bool> <!-- true | false -->
+    <string name="preference_sip_tls_truststore_raw_res_name"></string> <!-- eg: truststore if res/raw/truststore.bks -->
+    <string name="preference_sip_tls_truststore_password"></string>
+
     <!-- SIP Proxy Server -->
     <string name="preference_sip_proxy_server_address_default">demo.kurento.com</string> <!-- Mandatory -->
     <integer name="preference_sip_proxy_server_port_default">5060</integer> <!-- Mandatory -->

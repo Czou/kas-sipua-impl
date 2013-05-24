@@ -18,6 +18,10 @@ public class Preferences extends com.kurento.kas.media.impl.Preferences {
 	public static final String ENABLE_SIP_KEEP_ALIVE = "ENABLE_SIP_KEEP_ALIVE";
 	public static final String SIP_KEEP_ALIVE_SECONDS = "SIP_KEEP_ALIVE_SECONDS";
 
+	public static final String SIP_TRUST_ANY_TLS_CONNECTION = "SIP_TRUST_ANY_TLS_CONNECTION";
+	public static final String SIP_TLS_TRUSTSTORE_RAW_RES_NAME = "SIP_TLS_TRUSTSTORE_RAW_RES_NAME";
+	public static final String SIP_TLS_TRUSTSTORE_PASSWORD = "SIP_TLS_TRUSTSTORE_PASSWORD";
+
 	// SIP Proxy Server
 	public static final String SIP_PROXY_SERVER_ADDRESS = "PROXY_SERVER_ADDRESS"; // Mandatory
 	public static final String SIP_PROXY_SERVER_PORT = "PROXY_SERVER_PORT"; // Mandatory
@@ -32,6 +36,10 @@ public class Preferences extends com.kurento.kas.media.impl.Preferences {
 
 	private final boolean enableSipKeepAlive;
 	private final int sipKeepAliveSeconds;
+
+	private final boolean sipTrustAnyTlsConnection;
+	private final String sipTlsTruststoreRawResName;
+	private final String sipTlsTruststorePassword;
 
 	private final String sipProxyServerAddress;
 	private final int sipProxyServerPort;
@@ -78,6 +86,21 @@ public class Preferences extends com.kurento.kas.media.impl.Preferences {
 			throw new KurentoSipException(SIP_KEEP_ALIVE_SECONDS
 					+ " must be >= 0");
 
+		sipTrustAnyTlsConnection = pref.getBoolean(
+				SIP_TRUST_ANY_TLS_CONNECTION,
+				context.getResources().getBoolean(
+						R.bool.preference_sip_trust_any_tls_connection));
+
+		sipTlsTruststoreRawResName = pref
+				.getString(
+						SIP_TLS_TRUSTSTORE_RAW_RES_NAME,
+						context.getString(R.string.preference_sip_tls_truststore_raw_res_name));
+
+		sipTlsTruststorePassword = pref
+				.getString(
+						SIP_TLS_TRUSTSTORE_PASSWORD,
+						context.getString(R.string.preference_sip_tls_truststore_password));
+
 		sipProxyServerAddress = pref
 				.getString(
 						SIP_PROXY_SERVER_ADDRESS,
@@ -122,6 +145,18 @@ public class Preferences extends com.kurento.kas.media.impl.Preferences {
 
 	public int getSipKeepAliveSeconds() {
 		return sipKeepAliveSeconds;
+	}
+
+	public boolean isSipTrustAnyTlsConnection() {
+		return sipTrustAnyTlsConnection;
+	}
+
+	public String getSipTlsTruststoreRawResName() {
+		return sipTlsTruststoreRawResName;
+	}
+
+	public String getSipTlsTruststorePassword() {
+		return sipTlsTruststorePassword;
 	}
 
 	public String getSipProxyServerAddress() {
