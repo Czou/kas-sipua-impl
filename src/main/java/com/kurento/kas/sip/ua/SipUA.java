@@ -1041,27 +1041,34 @@ public class SipUA extends UA {
 
 	}
 
+	private void checkTCPConnectionAlive() {
+		log.trace("------------ Check TCP Connection Alive ------------");
+		try {
+			SocketAddress sa = sipStack.obtainLocalAddress(InetAddress
+					.getAllByName(preferences.getSipProxyServerAddress())[0],
+					preferences.getSipProxyServerPort(), localAddress, 0);
+			if (!tcpSocketAddress.toString().equalsIgnoreCase(sa.toString())) {
+				log.debug("Socket address changed: " + tcpSocketAddress
+						+ " -> " + sa);
+				reRegister();
+			}
+		} catch (UnknownHostException e) {
+			log.warn("Unknown host", e);
+		} catch (IOException e) {
+			log.warn("Error while obtaining local address");
+		}
+	}
+
 	private class CheckTCPConnectionAliveTimerTask extends KurentoUaTimerTask {
 
 		@Override
 		public void run() {
-			log.trace("------------ Check TCP Connection Alive ------------");
-			try {
-				SocketAddress sa = sipStack.obtainLocalAddress(
-						InetAddress.getAllByName(preferences
-								.getSipProxyServerAddress())[0], preferences
-								.getSipProxyServerPort(), localAddress, 0);
-				if (!tcpSocketAddress.toString()
-						.equalsIgnoreCase(sa.toString())) {
-					log.debug("Socket address changed: " + tcpSocketAddress
-							+ " -> " + sa);
-					reRegister();
+			looperThread.post(new Runnable() {
+				@Override
+				public void run() {
+					checkTCPConnectionAlive();
 				}
-			} catch (UnknownHostException e) {
-				log.warn("Unknown host", e);
-			} catch (IOException e) {
-				log.warn("Error while obtaining local address");
-			}
+			});
 		}
 
 	}
