@@ -30,6 +30,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.Semaphore;
 
 import javax.sip.ClientTransaction;
 import javax.sip.Dialog;
@@ -68,6 +69,8 @@ import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.os.Handler;
+import android.os.Looper;
 import android.preference.PreferenceManager;
 
 import com.kurento.kas.conference.Conference;
@@ -146,18 +149,14 @@ public class SipUA extends UA {
 	private final Context context;
 	private final SharedPreferences sharedPreferences;
 
+	private final LooperThread looperThread = new LooperThread();
+
 	public SipUA(Context context) throws KurentoSipException {
 		super(context);
 
-		this.context = context;
-		sharedPreferences = PreferenceManager
-				.getDefaultSharedPreferences(context);
-		sharedPreferences
-				.registerOnSharedPreferenceChangeListener(onSharedPreferenceChangeListener);
+		sipFactory = SipFactory.getInstance();
 
 		try {
-			preferences = new Preferences(context);
-			sipFactory = SipFactory.getInstance();
 			addressFactory = sipFactory.createAddressFactory();
 			headerFactory = sipFactory.createHeaderFactory();
 			messageFactory = sipFactory.createMessageFactory();
@@ -169,21 +168,30 @@ public class SipUA extends UA {
 							add(USER_AGENT);
 						}
 					});
-
-			this.wakeupTimer = new AlarmUaTimer(context,
-					AlarmManager.ELAPSED_REALTIME_WAKEUP);
-			this.noWakeupTimer = new AlarmUaTimer(context,
-					AlarmManager.ELAPSED_REALTIME);
-			createDefaultHandlers();
-			PeerConnectionFactory.initializeAndroidGlobals(context);
-
-			IntentFilter intentFilter = new IntentFilter();
-			intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
-			context.registerReceiver(networkStatetReceiver, intentFilter);
 		} catch (Throwable t) {
 			log.error("SipUA initialization error", t);
 			throw new KurentoSipException("SipUA initialization error", t);
 		}
+
+		this.context = context;
+		sharedPreferences = PreferenceManager
+				.getDefaultSharedPreferences(context);
+		sharedPreferences
+				.registerOnSharedPreferenceChangeListener(onSharedPreferenceChangeListener);
+
+		looperThread.start();
+		preferences = new Preferences(context);
+
+		this.wakeupTimer = new AlarmUaTimer(context,
+				AlarmManager.ELAPSED_REALTIME_WAKEUP);
+		this.noWakeupTimer = new AlarmUaTimer(context,
+				AlarmManager.ELAPSED_REALTIME);
+		createDefaultHandlers();
+		PeerConnectionFactory.initializeAndroidGlobals(context);
+
+		IntentFilter intentFilter = new IntentFilter();
+		intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+		context.registerReceiver(networkStatetReceiver, intentFilter);
 	}
 
 	protected Context getContext() {
@@ -361,9 +369,9 @@ public class SipUA extends UA {
 	//
 	// ////////////////////////////
 
-	private synchronized void configureSipStack() throws KurentoSipException {
+	private synchronized void configureSipStackSync() {
 		try {
-			terminateSipStack(); // Just in case
+			terminateSipStackSync(); // Just in case
 
 			localAddress = NetworkUtilities.getLocalInterface(null,
 					preferences.isSipOnlyIpv4());
@@ -394,41 +402,45 @@ public class SipUA extends UA {
 					.getSipTransport()))
 				jainProps.setProperty(
 						"gov.nist.javax.sip.TLS_CLIENT_PROTOCOLS",
-						"SSLv3, TLSv1"); // SSLv2Hello not supported on Android
+						"SSLv3, TLSv1"); // SSLv2Hello not supported on
+											// Android
 
-			// Problems with introspection in Android. FIXED creating a subclass
+			// Problems with introspection in Android. FIXED creating a
+			// subclass
 			// of SipStackImpl (KurentoSipStackImpl) and implementing
 			// KurentoSslNetworkLayer
-			// String path = "com.kurento.kas.sip.ua.KurentoSslNetworkLayer";
-			// jainProps.setProperty("gov.nist.javax.sip.NETWORK_LAYER", path);
+			// String path =
+			// "com.kurento.kas.sip.ua.KurentoSslNetworkLayer";
+			// jainProps.setProperty("gov.nist.javax.sip.NETWORK_LAYER",
+			// path);
 
 			log.info("Stack properties: " + jainProps);
 
 			// Create SIP STACK
 			sipStack = new KurentoSipStackImpl(context, jainProps);
 
-			if (ListeningPoint.TLS.equalsIgnoreCase(preferences
-					.getSipTransport())) {
-				try {
-					if (preferences.isSipTrustAnyTlsConnection()) {
-						sipStack.setNetworkLayer(new KurentoSslNetworkLayer());
-					} else {
-						String truststoreRawResName = preferences
-								.getSipTlsTruststoreRawResName();
-						String truststorePassord = preferences
-								.getSipTlsTruststorePassword();
-						preferences.getSipTlsTruststorePassword();
-						sipStack.setNetworkLayer(new KurentoSslNetworkLayer(
-								context, truststoreRawResName,
-								truststorePassord));
-					}
-				} catch (Exception e) {
-					log.error("could not instantiate SSL networking", e);
-					throw e;
+			// if (ListeningPoint.TLS.equalsIgnoreCase(preferences
+			// .getSipTransport())) {
+			try {
+				if (preferences.isSipTrustAnyTlsConnection()) {
+					sipStack.setNetworkLayer(new KurentoSslNetworkLayer());
+				} else {
+					String truststoreRawResName = preferences
+							.getSipTlsTruststoreRawResName();
+					String truststorePassord = preferences
+							.getSipTlsTruststorePassword();
+					preferences.getSipTlsTruststorePassword();
+					sipStack.setNetworkLayer(new KurentoSslNetworkLayer(
+							context, truststoreRawResName, truststorePassord));
 				}
+			} catch (Exception e) {
+				log.error("could not instantiate SSL networking", e);
+				throw e;
 			}
+			// }
 			// TODO get socket from SipStackExt to perform STUN test
-			// TODO Verify socket transport to see if it is compatible with STUN
+			// TODO Verify socket transport to see if it is compatible
+			// with STUN
 
 			// Create a listening point per interface
 			log.info("Create listening point at: " + localAddress + ":"
@@ -474,23 +486,22 @@ public class SipUA extends UA {
 				register(reg);
 		} catch (Throwable t) {
 			terminateSipStack();
-			throw new KurentoSipException("Unable to instantiate a SIP stack",
-					t);
+			log.error("Error configuring SIP stack", t);
+			errorHandler.onUAError(SipUA.this, new KurentoException(
+					"Unable to instantiate a SIP stack", t));
 		}
 	}
 
-	private void reconfigureSipStack() {
-		// TODO: add some retries?
-		try {
-			log.info("Reconfigure SIP stack");
-			configureSipStack();
-		} catch (KurentoSipException e) {
-			log.error("Error reconfiguring SIP stack", e);
-			errorHandler.onUAError(SipUA.this, new KurentoException(e));
-		}
+	private synchronized void configureSipStack() {
+		looperThread.post(new Runnable() {
+			@Override
+			public void run() {
+				configureSipStackSync();
+			}
+		});
 	}
 
-	private synchronized void terminateSipStack() {
+	private synchronized void terminateSipStackSync() {
 		if (sipKeepAliveTimerTask != null) {
 			log.info("Stop SIP keep alive");
 			wakeupTimer.cancel(sipKeepAliveTimerTask);
@@ -526,6 +537,15 @@ public class SipUA extends UA {
 		}
 
 		sipStackEnabled = false;
+	}
+
+	private synchronized void terminateSipStack() {
+		looperThread.post(new Runnable() {
+			@Override
+			public void run() {
+				terminateSipStackSync();
+			}
+		});
 	}
 
 	private void configureSipKeepAlive() {
@@ -589,7 +609,7 @@ public class SipUA extends UA {
 		}
 	}
 
-	private synchronized void reRegister() {
+	private synchronized void reRegisterSync() {
 		InetAddress localAddress;
 		try {
 			localAddress = NetworkUtilities.getLocalInterface(null,
@@ -618,6 +638,15 @@ public class SipUA extends UA {
 		}
 	}
 
+	private void reRegister() {
+		looperThread.post(new Runnable() {
+			@Override
+			public void run() {
+				reRegisterSync();
+			}
+		});
+	}
+
 	public synchronized void registerPersistentTcp(SipRegister sipReg,
 			int expires) {
 		try {
@@ -634,8 +663,7 @@ public class SipUA extends UA {
 		}
 	}
 
-	@Override
-	public synchronized void register(Register register) {
+	private synchronized void registerSync(Register register) {
 		// TODO Implement STUN in order to get public transport address. This
 		// is not accurate at all, but at least give the chance
 		// TODO STUN enabled then use public, STUN disabled then use private.
@@ -657,7 +685,16 @@ public class SipUA extends UA {
 	}
 
 	@Override
-	public synchronized void unregister(Register register) {
+	public void register(final Register register) {
+		looperThread.post(new Runnable() {
+			@Override
+			public void run() {
+				registerSync(register);
+			}
+		});
+	}
+
+	private synchronized void unregisterSync(Register register) {
 		try {
 			log.debug("Request to unregister: " + register.getUri());
 
@@ -680,6 +717,16 @@ public class SipUA extends UA {
 			log.error("Unable to create CRegister", e);
 			registerHandler.onRegisterError(register, e);
 		}
+	}
+
+	@Override
+	public void unregister(final Register register) {
+		looperThread.post(new Runnable() {
+			@Override
+			public void run() {
+				unregisterSync(register);
+			}
+		});
 	}
 
 	@Override
@@ -1033,22 +1080,10 @@ public class SipUA extends UA {
 
 				if (ni.getState().equals(NetworkInfo.State.CONNECTED)) {
 					log.debug("Network connected");
-					Thread thread = new Thread(new Runnable() {
-						@Override
-						public void run() {
-							reconfigureSipStack();
-						}
-					});
-					thread.start();
+					configureSipStack();
 				} else {
 					log.debug("Network not connected");
-					Thread thread = new Thread(new Runnable() {
-						@Override
-						public void run() {
-							terminate();
-						}
-					});
-					thread.start();
+					terminate();
 				}
 			}
 		}
@@ -1067,7 +1102,7 @@ public class SipUA extends UA {
 					|| Preferences.SIP_PROXY_SERVER_ADDRESS.equals(key)
 					|| Preferences.SIP_PROXY_SERVER_PORT.equals(key)
 					|| Preferences.SIP_LOCAL_PORT.equals(key)) {
-				reconfigureSipStack();
+				configureSipStack();
 			} else if (Preferences.SIP_REG_EXPIRES.equals(key)) {
 				reRegister();
 			} else if (Preferences.ENABLE_SIP_KEEP_ALIVE.equals(key)
@@ -1077,4 +1112,29 @@ public class SipUA extends UA {
 		}
 	};
 
+	private class LooperThread extends Thread {
+		public Handler mHandler;
+		private Semaphore sem = new Semaphore(0);
+
+		public void run() {
+			Looper.prepare();
+			mHandler = new Handler();
+			sem.release();
+			Looper.loop();
+		}
+
+		public boolean post(Runnable r) {
+			try {
+				sem.acquire();
+				boolean ret = mHandler.post(r);
+				sem.release();
+
+				return ret;
+			} catch (InterruptedException e) {
+				log.error("Cannot run", e);
+				return false;
+			}
+		}
+
+	}
 }
