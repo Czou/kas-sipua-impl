@@ -97,6 +97,7 @@ import com.kurento.kas.ua.KurentoException;
 import com.kurento.kas.ua.Register;
 import com.kurento.kas.ua.RegisterHandler;
 import com.kurento.kas.ua.UA;
+import com.kurento.kas.ua.UAHandler;
 
 public class SipUA extends UA {
 
@@ -136,6 +137,7 @@ public class SipUA extends UA {
 
 	// Handlers
 	private ErrorHandler errorHandler;
+	private UAHandler uaHandler;
 	private RegisterHandler registerHandler;
 	private CallDialingHandler callDialingHandler;
 	private CallEstablishedHandler callEstablishedHandler;
@@ -315,6 +317,11 @@ public class SipUA extends UA {
 	@Override
 	public void setExceptionHandler(ErrorHandler errorHandler) {
 		this.errorHandler = errorHandler;
+	}
+
+	@Override
+	public void setUAHandler(UAHandler uaHandler) {
+		this.uaHandler = uaHandler;
 	}
 
 	@Override
@@ -955,6 +962,14 @@ public class SipUA extends UA {
 			@Override
 			public void onCallError(Call call, KurentoException exception) {
 				log.info("Default onCallError");
+			}
+		};
+
+		uaHandler = new UAHandler() {
+
+			@Override
+			public void onTerminated(UA ua) {
+				log.info("Default onTerminated");
 			}
 		};
 
