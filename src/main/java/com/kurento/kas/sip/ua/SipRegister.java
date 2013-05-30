@@ -15,12 +15,12 @@ public class SipRegister {
 	private static final Logger log = LoggerFactory.getLogger(SipRegister.class
 			.getSimpleName());
 
-	private SipUA sipUA;
-	private Register register;
+	private final SipUA sipUA;
+	private final Register register;
 	private long cseq;
-	private UUID registerCallId;
+	private final UUID registerCallId;
 	private Address address;
-	private SipRegisterTimerTask sipRegisterTimerTask;
+	private final SipRegisterTimerTask sipRegisterTimerTask;
 
 	public SipRegister(SipUA sipUA, Register register) {
 		this.sipUA = sipUA;
@@ -67,7 +67,7 @@ public class SipRegister {
 
 	private class SipRegisterTimerTask extends KurentoUaTimerTask {
 		@Override
-		public void run() {
+		protected void run() {
 			log.debug("SipRegisterTimerTask register");
 			sipUA.register(register);
 		}

@@ -1,23 +1,23 @@
 package com.kurento.kas.sip.util;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Random;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Bundle;
+import android.content.IntentFilter;
 import android.os.SystemClock;
 
 public class AlarmUaTimer {
 
-	private AlarmManager alarmManager;
-	private Context context;
-	private int type;
+	private final static Logger log = LoggerFactory
+			.getLogger(AlarmUaTimer.class.getSimpleName());
 
-	private static HashMap<Integer, KurentoUaTimerTask> taskTable = new HashMap<Integer, KurentoUaTimerTask>();
+	private final AlarmManager alarmManager;
+	private final Context context;
+	private final int type;
 
 	public AlarmUaTimer(Context context, int type) {
 		this.context = context;
@@ -26,46 +26,28 @@ public class AlarmUaTimer {
 				.getSystemService(Context.ALARM_SERVICE);
 	}
 
-	public static HashMap<Integer, KurentoUaTimerTask> getTaskTable() {
-		return taskTable;
-	}
-
 	public void cancel(KurentoUaTimerTask task) {
-		Integer uuid = -1;
-		for (Iterator<Integer> i = taskTable.keySet().iterator(); i.hasNext();) {
-			Integer key = (Integer) i.next();
-			if (taskTable.get(key).equals(task)) {
-				uuid = key;
-			}
-		}
-		Intent serviceIntent = new Intent();
-		serviceIntent.setClass(context.getApplicationContext(),
-				AlarmService.class);
-		PendingIntent pendingIntent = PendingIntent.getService(context, uuid,
+		Intent serviceIntent = new Intent(task.getId());
+		PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0,
 				serviceIntent, 0);
 		alarmManager.cancel(pendingIntent);
-		taskTable.remove(uuid);
+		try {
+			context.unregisterReceiver(task.getReceiver());
+		} catch (Throwable t) {
+			log.error("Error unregistering receiver: " + task.getId());
+		}
 	}
 
 	public void schedule(final KurentoUaTimerTask task, long delay, long period) {
-		if (!taskTable.containsValue(task)) {
-			Integer uuid = new Random().nextInt();
-			taskTable.put(uuid, task);
+		Intent serviceIntent = new Intent(task.getId());
 
-			Bundle extras = new Bundle();
-			extras.putInt("uuid", uuid);
+		PendingIntent pendingIntent = PendingIntent.getBroadcast(this.context,
+				0, serviceIntent, 0);
+		context.registerReceiver(task.getReceiver(),
+				new IntentFilter(task.getId()));
 
-			Intent serviceIntent = new Intent();
-			serviceIntent.setClass(context.getApplicationContext(),
-					AlarmService.class);
-			serviceIntent.putExtras(extras);
-
-			PendingIntent pendingIntent = PendingIntent.getService(
-					this.context, uuid, serviceIntent, 0);
-
-			alarmManager.setRepeating(type, SystemClock.elapsedRealtime()
-					+ delay, period, pendingIntent);
-		}
+		alarmManager.setRepeating(type, SystemClock.elapsedRealtime() + delay,
+				period, pendingIntent);
 	}
 
 }

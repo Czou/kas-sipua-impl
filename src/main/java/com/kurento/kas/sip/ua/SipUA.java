@@ -1046,7 +1046,7 @@ public class SipUA extends UA {
 		}
 
 		@Override
-		public void run() {
+		protected void run() {
 			log.debug("Sending SIP keep alive");
 			try {
 				listeningPoint.sendHeartbeat(proxyAddr, proxyPort);
@@ -1078,7 +1078,7 @@ public class SipUA extends UA {
 	private class CheckTCPConnectionAliveTimerTask extends KurentoUaTimerTask {
 
 		@Override
-		public void run() {
+		protected void run() {
 			looperThread.post(new Runnable() {
 				@Override
 				public void run() {
