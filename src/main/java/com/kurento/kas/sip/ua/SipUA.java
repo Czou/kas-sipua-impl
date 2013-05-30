@@ -110,10 +110,10 @@ public class SipUA extends UA {
 	private boolean sipStackEnabled = false;
 
 	// SIP factories
-	private SipFactory sipFactory;
-	private AddressFactory addressFactory;
-	private HeaderFactory headerFactory;
-	private MessageFactory messageFactory;
+	private final SipFactory sipFactory;
+	private final AddressFactory addressFactory;
+	private final HeaderFactory headerFactory;
+	private final MessageFactory messageFactory;
 
 	// Sip Stack
 	private SipProvider sipProvider;
@@ -121,8 +121,8 @@ public class SipUA extends UA {
 	private ListeningPoint listeningPoint;
 	private final SipListenerImpl sipListenerImpl = new SipListenerImpl();
 
-	private AlarmUaTimer wakeupTimer;
-	private AlarmUaTimer noWakeupTimer;
+	private final AlarmUaTimer wakeupTimer;
+	private final AlarmUaTimer noWakeupTimer;
 
 	private InetAddress localAddress;
 	private SocketAddress tcpSocketAddress;
@@ -147,7 +147,7 @@ public class SipUA extends UA {
 	private final Map<String, SipRegister> localUris = new ConcurrentHashMap<String, SipRegister>();
 	final Set<Call> activedCalls = new CopyOnWriteArraySet<Call>();
 
-	private Preferences preferences;
+	private final Preferences preferences;
 	private final Context context;
 	private final SharedPreferences sharedPreferences;
 
@@ -1113,7 +1113,7 @@ public class SipUA extends UA {
 
 	};
 
-	private OnSharedPreferenceChangeListener onSharedPreferenceChangeListener = new OnSharedPreferenceChangeListener() {
+	private final OnSharedPreferenceChangeListener onSharedPreferenceChangeListener = new OnSharedPreferenceChangeListener() {
 		@Override
 		public void onSharedPreferenceChanged(
 				SharedPreferences sharedPreferences, String key) {
@@ -1137,8 +1137,9 @@ public class SipUA extends UA {
 
 	private class LooperThread extends Thread {
 		public Handler mHandler;
-		private Semaphore sem = new Semaphore(0);
+		private final Semaphore sem = new Semaphore(0);
 
+		@Override
 		public void run() {
 			Looper.prepare();
 			mHandler = new Handler();
