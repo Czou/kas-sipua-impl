@@ -200,8 +200,7 @@ public class SipUA extends UA {
 		return context;
 	}
 
-	@Override
-	public synchronized void terminate() {
+	private synchronized void terminateSync() {
 		sharedPreferences
 				.unregisterOnSharedPreferenceChangeListener(onSharedPreferenceChangeListener);
 
@@ -212,9 +211,20 @@ public class SipUA extends UA {
 
 		// Unregister all local contacts
 		for (SipRegister reg : localUris.values())
-			unregister(reg.getRegister());
+			unregisterSync(reg.getRegister());
 
 		terminateSipStack();
+		uaHandler.onTerminated(SipUA.this);
+	}
+
+	@Override
+	public void terminate() {
+		looperThread.post(new Runnable() {
+			@Override
+			public void run() {
+				terminateSync();
+			}
+		});
 	}
 
 	// ////////////////
@@ -378,7 +388,7 @@ public class SipUA extends UA {
 
 	private synchronized void configureSipStackSync() {
 		try {
-			terminateSipStackSync(); // Just in case
+			terminateSipStack(); // Just in case
 
 			localAddress = NetworkUtilities.getLocalInterface(null,
 					preferences.isSipOnlyIpv4());
@@ -508,7 +518,7 @@ public class SipUA extends UA {
 		});
 	}
 
-	private synchronized void terminateSipStackSync() {
+	private synchronized void terminateSipStack() {
 		if (sipKeepAliveTimerTask != null) {
 			log.info("Stop SIP keep alive");
 			wakeupTimer.cancel(sipKeepAliveTimerTask);
@@ -544,15 +554,6 @@ public class SipUA extends UA {
 		}
 
 		sipStackEnabled = false;
-	}
-
-	private synchronized void terminateSipStack() {
-		looperThread.post(new Runnable() {
-			@Override
-			public void run() {
-				terminateSipStackSync();
-			}
-		});
 	}
 
 	private void configureSipKeepAlive() {
