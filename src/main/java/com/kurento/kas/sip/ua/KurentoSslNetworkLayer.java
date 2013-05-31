@@ -25,7 +25,9 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketAddress;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.SecureRandom;
@@ -61,6 +63,8 @@ public class KurentoSslNetworkLayer implements NetworkLayer {
 
 	private SSLServerSocketFactory sslServerSocketFactory;
 
+	private static final int MAX_RETRIES = 20;
+
 	public KurentoSslNetworkLayer() throws GeneralSecurityException {
 		SecureRandom secureRandom = new SecureRandom();
 		secureRandom.nextInt();
@@ -73,7 +77,6 @@ public class KurentoSslNetworkLayer implements NetworkLayer {
 	public KurentoSslNetworkLayer(Context context, String trustStoreRawResname,
 			String trustStorePassword) throws GeneralSecurityException,
 			IOException {
-
 		SecureRandom secureRandom = new SecureRandom();
 		secureRandom.nextInt();
 		SSLContext sslContext = SSLContext.getInstance("TLS");
@@ -173,20 +176,35 @@ public class KurentoSslNetworkLayer implements NetworkLayer {
 	 *         address:port.
 	 * @throws IOException
 	 *             if binding or connecting the socket fail for a reason
-	 *             (exception relayed from the correspoonding Socket methods)
+	 *             (exception relayed from the corresponding Socket methods)
 	 */
 	public Socket createSocket(InetAddress address, int port,
 			InetAddress myAddress, int myPort) throws IOException {
-		if (myAddress != null)
-			return new Socket(address, port, myAddress, myPort);
-		else if (port != 0) {
-			// myAddress is null (i.e. any) but we have a port number
-			Socket sock = new Socket();
-			sock.bind(new InetSocketAddress(port));
-			sock.connect(new InetSocketAddress(address, port));
-			return sock;
-		} else
-			return new Socket(address, port);
+		int timeout = 1000;
+		int timeoutInc = 200;
+
+		for (int i = 0; i < MAX_RETRIES; i++) {
+			try {
+				Socket s = new Socket();
+				SocketAddress sa = null;
+				if (myAddress != null)
+					sa = new InetSocketAddress(myAddress, myPort);
+				else if (myPort != 0)
+					sa = new InetSocketAddress(myPort);
+				else
+					sa = new InetSocketAddress(0);
+
+				s.bind(sa);
+				if (i % 3 == 0)
+					timeout += timeoutInc;
+				s.connect(new InetSocketAddress(address, port), timeout);
+				return s;
+			} catch (SocketTimeoutException e) {
+				log.warn("Cannot connect socket: " + e.getMessage());
+			}
+		}
+
+		throw new IOException("Unable to connect socket");
 	}
 
 	// Trust manager that does not validate certificate chains

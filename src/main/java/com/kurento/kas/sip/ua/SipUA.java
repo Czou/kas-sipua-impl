@@ -436,10 +436,10 @@ public class SipUA extends UA {
 			// Create SIP STACK
 			sipStack = new KurentoSipStackImpl(context, jainProps);
 
-			// if (ListeningPoint.TLS.equalsIgnoreCase(preferences
-			// .getSipTransport())) {
 			try {
-				if (preferences.isSipTrustAnyTlsConnection()) {
+				if (!ListeningPoint.TLS.equalsIgnoreCase(preferences
+						.getSipTransport())
+						|| preferences.isSipTrustAnyTlsConnection()) {
 					sipStack.setNetworkLayer(new KurentoSslNetworkLayer());
 				} else {
 					String truststoreRawResName = preferences
@@ -454,7 +454,7 @@ public class SipUA extends UA {
 				log.error("could not instantiate SSL networking", e);
 				throw e;
 			}
-			// }
+
 			// TODO get socket from SipStackExt to perform STUN test
 			// TODO Verify socket transport to see if it is compatible
 			// with STUN
