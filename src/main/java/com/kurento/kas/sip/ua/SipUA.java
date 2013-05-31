@@ -625,7 +625,7 @@ public class SipUA extends UA {
 
 			if (localAddress.equals(this.localAddress)) {
 				for (SipRegister reg : localUris.values())
-					register(reg.getRegister());
+					registerSync(reg.getRegister());
 				if (preferences.isPersistentConnection()) {
 					try {
 						tcpSocketAddress = sipStack.obtainLocalAddress(
@@ -1066,7 +1066,7 @@ public class SipUA extends UA {
 			if (!tcpSocketAddress.toString().equalsIgnoreCase(sa.toString())) {
 				log.debug("Socket address changed: " + tcpSocketAddress
 						+ " -> " + sa);
-				reRegister();
+				reRegisterSync();
 			}
 		} catch (UnknownHostException e) {
 			log.warn("Unknown host", e);
