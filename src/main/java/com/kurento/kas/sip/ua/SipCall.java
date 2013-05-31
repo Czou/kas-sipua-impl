@@ -121,8 +121,7 @@ public class SipCall extends BaseCall {
 		if (State.IDLE.equals(state)) {
 			// State is idle until INVITE request is sent.
 			// DO NOTHING. Cancel must be sent after invite is sent
-			log.debug("Request to terminate outgoing call with no INVITE transaction created yet: "
-					+ getCallInfo());
+			log.debug("Request to terminate outgoing call with no INVITE transaction created yet");
 		} else if (State.OUTGOING_RINGING.equals(state)) {
 			// Hang out an outgoing call after INVITE request is sent and
 			// before response is received
