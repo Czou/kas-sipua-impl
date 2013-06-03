@@ -70,7 +70,6 @@ public class SInvite extends STransaction {
 				@Override
 				public void onSdpAnswerCreated(String sdp) {
 					call.removeCreateSdpAnswerObserver(this);
-					log.info("onSdpAnswerCreated SDP: " + sdp);
 					SInvite.this.call.incomingCall(SInvite.this);
 				}
 
