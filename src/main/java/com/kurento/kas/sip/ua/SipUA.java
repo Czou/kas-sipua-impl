@@ -794,9 +794,9 @@ public class SipUA extends UA {
 		}
 
 		@Override
-		public void processIOException(IOExceptionEvent arg0) {
+		public void processIOException(IOExceptionEvent e) {
 			// Nothing to do here
-			log.info("IO Exception");
+			log.warn("SIP IO Exception: " + e);
 		}
 
 		@Override
