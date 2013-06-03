@@ -95,8 +95,12 @@ public class SipCall extends BaseCall {
 		if (State.INCOMING_RINGING.equals(state)) {
 			stateTransition(State.CONFIRMED);
 			try {
-				incomingInitiatingRequest.sendResponse(Response.OK,
-						getLocalDescription());
+				String localDescription = getLocalDescription();
+				if (localDescription == null)
+					callFailed(new KurentoException("Local description not set"));
+				else
+					incomingInitiatingRequest.sendResponse(Response.OK,
+							localDescription.getBytes());
 				incomingInitiatingRequest = null;
 			} catch (KurentoSipException e) {
 				// SIP failures are noti
