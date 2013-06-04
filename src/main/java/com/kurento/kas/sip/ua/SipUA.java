@@ -1057,7 +1057,10 @@ public class SipUA extends UA {
 
 	}
 
-	private void checkTCPConnectionAlive() {
+	private synchronized void checkTCPConnectionAliveSync() {
+		if (sipStack == null)
+			return;
+
 		log.trace("------------ Check TCP Connection Alive ------------");
 		try {
 			SocketAddress sa = sipStack.obtainLocalAddress(InetAddress
@@ -1082,7 +1085,7 @@ public class SipUA extends UA {
 			looperThread.post(new Runnable() {
 				@Override
 				public void run() {
-					checkTCPConnectionAlive();
+					checkTCPConnectionAliveSync();
 				}
 			});
 		}
@@ -1159,6 +1162,6 @@ public class SipUA extends UA {
 				return false;
 			}
 		}
-
 	}
+
 }
