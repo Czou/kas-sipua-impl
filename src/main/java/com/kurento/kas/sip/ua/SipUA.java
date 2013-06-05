@@ -762,8 +762,11 @@ public class SipUA extends UA {
 
 	@Override
 	public Call dial(String remoteUri) {
-		if (localUris.size() == 0)
+		if (localUris.size() == 0) {
+			errorHandler.onCallError(null, new KurentoException(
+					"Cannot dial. There is not any local URI."));
 			return null;
+		}
 
 		String localUri = localUris.keySet().iterator().next();
 		return dial(localUri, remoteUri);
