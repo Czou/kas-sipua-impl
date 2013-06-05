@@ -193,7 +193,7 @@ public class SipUA extends UA {
 
 		IntentFilter intentFilter = new IntentFilter();
 		intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
-		context.registerReceiver(networkStatetReceiver, intentFilter);
+		context.registerReceiver(networkStateReceiver, intentFilter);
 	}
 
 	protected Context getContext() {
@@ -1092,7 +1092,7 @@ public class SipUA extends UA {
 
 	}
 
-	private final BroadcastReceiver networkStatetReceiver = new BroadcastReceiver() {
+	private final BroadcastReceiver networkStateReceiver = new BroadcastReceiver() {
 
 		@Override
 		public void onReceive(Context context, Intent intent) {
