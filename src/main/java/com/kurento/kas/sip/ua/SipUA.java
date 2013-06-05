@@ -108,6 +108,7 @@ public class SipUA extends UA {
 	private UserAgentHeader userAgentHeader;
 
 	private boolean sipStackEnabled = false;
+	private boolean sipUaTerminated = false;
 
 	// SIP factories
 	private final SipFactory sipFactory;
@@ -203,6 +204,7 @@ public class SipUA extends UA {
 	private synchronized void terminateSync() {
 		sharedPreferences
 				.unregisterOnSharedPreferenceChangeListener(onSharedPreferenceChangeListener);
+		context.unregisterReceiver(networkStateReceiver);
 
 		for (Call call : activedCalls) {
 			call.hangup();
@@ -214,6 +216,7 @@ public class SipUA extends UA {
 			unregisterSync(reg.getRegister());
 
 		terminateSipStack();
+		sipUaTerminated = true;
 		uaHandler.onTerminated(SipUA.this);
 	}
 
@@ -387,6 +390,11 @@ public class SipUA extends UA {
 	// ////////////////////////////
 
 	private synchronized void configureSipStackSync() {
+		if (sipUaTerminated) {
+			log.warn("Cannot configure SIP Stack. UA is terminated.");
+			return;
+		}
+
 		try {
 			terminateSipStack(); // Just in case
 
