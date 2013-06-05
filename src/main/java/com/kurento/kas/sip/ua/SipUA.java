@@ -107,7 +107,6 @@ public class SipUA extends UA {
 	private static final String USER_AGENT = "KurentoAndroidUa/1.0.0";
 	private UserAgentHeader userAgentHeader;
 
-	private boolean sipStackEnabled = false;
 	private boolean sipUaTerminated = false;
 
 	// SIP factories
@@ -205,15 +204,6 @@ public class SipUA extends UA {
 		sharedPreferences
 				.unregisterOnSharedPreferenceChangeListener(onSharedPreferenceChangeListener);
 		context.unregisterReceiver(networkStateReceiver);
-
-		for (Call call : activedCalls) {
-			call.hangup();
-			activedCalls.remove(call);
-		}
-
-		// Unregister all local contacts
-		for (SipRegister reg : localUris.values())
-			unregisterSync(reg.getRegister());
 
 		terminateSipStack();
 		sipUaTerminated = true;
@@ -504,8 +494,6 @@ public class SipUA extends UA {
 
 			configureSipKeepAlive();
 
-			sipStackEnabled = true;
-
 			// Re-register all local contacts
 			for (SipRegister reg : localUris.values())
 				register(reg);
@@ -538,8 +526,16 @@ public class SipUA extends UA {
 		}
 
 		if (sipStack != null && sipProvider != null) {
-			log.info("Delete SIP listening points");
+			for (Call call : activedCalls) {
+				call.hangup();
+				activedCalls.remove(call);
+			}
 
+			// Unregister all local contacts
+			for (SipRegister reg : localUris.values())
+				unregisterSync(reg.getRegister());
+
+			log.info("Delete SIP listening points");
 			for (ListeningPoint lp : sipProvider.getListeningPoints()) {
 				try {
 					sipStack.deleteListeningPoint(lp);
@@ -560,8 +556,6 @@ public class SipUA extends UA {
 			sipStack = null;
 			log.info("SIP stack terminated");
 		}
-
-		sipStackEnabled = false;
 	}
 
 	private void configureSipKeepAlive() {
@@ -587,41 +581,44 @@ public class SipUA extends UA {
 	// ////////////////
 
 	private synchronized void register(SipRegister sipReg) {
-		if (sipStackEnabled) {
-			Register reg = sipReg.getRegister();
-			try {
-				String contactAddressStr = "sip:" + reg.getUser() + "@"
-						+ localAddress.getHostAddress() + ":"
-						+ preferences.getSipLocalPort();
-				if (!ListeningPoint.UDP.equalsIgnoreCase(preferences
-						.getSipTransport()))
-					contactAddressStr += ";transport="
-							+ preferences.getSipTransport();
+		if (sipStack == null) {
+			log.warn("Cannot register. SIP Stack is not enabled");
+			return;
+		}
 
-				Address contactAddress = addressFactory
-						.createAddress(contactAddressStr);
-				sipReg.setAddress(contactAddress);
+		Register reg = sipReg.getRegister();
+		try {
+			String contactAddressStr = "sip:" + reg.getUser() + "@"
+					+ localAddress.getHostAddress() + ":"
+					+ preferences.getSipLocalPort();
+			if (!ListeningPoint.UDP.equalsIgnoreCase(preferences
+					.getSipTransport()))
+				contactAddressStr += ";transport="
+						+ preferences.getSipTransport();
 
-				// Before registration remove previous timers
-				wakeupTimer.cancel(sipReg.getSipRegisterTimerTask());
+			Address contactAddress = addressFactory
+					.createAddress(contactAddressStr);
+			sipReg.setAddress(contactAddress);
 
-				if (preferences.isPersistentConnection()) {
-					registerPersistentTcp(sipReg, 0);
-				} else {
-					CRegister creg = new CRegister(this, sipReg,
-							preferences.getSipRegExpires());
-					creg.sendRequest();
-				}
-			} catch (ParseException e) {
-				log.error("Unable to create contact address", e);
-				registerHandler.onRegisterError(reg, new KurentoException(e));
-			} catch (KurentoSipException e) {
-				log.error("Unable to register", e);
-				registerHandler.onRegisterError(reg, new KurentoException(e));
-			} catch (KurentoException e) {
-				log.error("Unable to create CRegister", e);
-				registerHandler.onRegisterError(reg, e);
+			// Before registration remove previous timers
+			wakeupTimer.cancel(sipReg.getSipRegisterTimerTask());
+
+			if (preferences.isPersistentConnection()) {
+				registerPersistentTcp(sipReg, 0);
+			} else {
+				CRegister creg = new CRegister(this, sipReg,
+						preferences.getSipRegExpires());
+				creg.sendRequest();
 			}
+		} catch (ParseException e) {
+			log.error("Unable to create contact address", e);
+			registerHandler.onRegisterError(reg, new KurentoException(e));
+		} catch (KurentoSipException e) {
+			log.error("Unable to register", e);
+			registerHandler.onRegisterError(reg, new KurentoException(e));
+		} catch (KurentoException e) {
+			log.error("Unable to create CRegister", e);
+			registerHandler.onRegisterError(reg, e);
 		}
 	}
 
@@ -749,6 +746,12 @@ public class SipUA extends UA {
 	public synchronized Call dial(String fromUri, String remoteUri) {
 		SipCall call = null;
 
+		if (sipStack == null) {
+			errorHandler.onCallError(call, new KurentoException(
+					"Cannot dial. SIP Stack is not enabled"));
+			return call;
+		}
+
 		if (remoteUri != null) {
 			log.debug("Creating new SipCall");
 			try {
@@ -758,7 +761,7 @@ public class SipUA extends UA {
 				errorHandler.onCallError(call, new KurentoException(e));
 			}
 		} else {
-			errorHandler.onCallError(null, new KurentoException(
+			errorHandler.onCallError(call, new KurentoException(
 					"Request to call NULL uri."));
 		}
 

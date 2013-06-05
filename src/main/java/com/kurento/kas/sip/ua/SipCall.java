@@ -57,8 +57,7 @@ public class SipCall extends BaseCall {
 	// ////////////////////
 
 	// Used to create outgoing calls
-	protected SipCall(SipUA sipUA, String fromUri, String toUri)
-			throws KurentoSipException {
+	protected SipCall(SipUA sipUA, String fromUri, String toUri) {
 		super(sipUA.getContext());
 		this.sipUA = sipUA;
 		this.localUri = fromUri;
