@@ -742,42 +742,46 @@ public class SipUA extends UA {
 		});
 	}
 
-	@Override
-	public synchronized Call dial(String fromUri, String remoteUri) {
-		SipCall call = null;
-
+	private synchronized void dialSync(SipCall call) {
 		if (sipStack == null) {
 			errorHandler.onCallError(call, new KurentoException(
 					"Cannot dial. SIP Stack is not enabled"));
-			return call;
+			return;
 		}
 
-		if (remoteUri != null) {
-			log.debug("Creating new SipCall");
-			try {
-				call = new SipCall(this, fromUri, remoteUri);
-				new CInvite(this, call);
-			} catch (KurentoSipException e) {
-				errorHandler.onCallError(call, new KurentoException(e));
-			}
-		} else {
-			errorHandler.onCallError(call, new KurentoException(
-					"Request to call NULL uri."));
-		}
-
-		if (call != null)
+		try {
+			new CInvite(this, call);
 			activedCalls.add(call);
+		} catch (KurentoSipException e) {
+			errorHandler.onCallError(call, new KurentoException(e));
+		}
+	}
+
+	@Override
+	public Call dial(String fromUri, String remoteUri) throws KurentoException {
+		if (fromUri == null || fromUri.isEmpty())
+			throw new KurentoException("From URI not set");
+
+		if (remoteUri == null || remoteUri.isEmpty())
+			throw new KurentoException("Remote URI not set");
+
+		final SipCall call = new SipCall(this, fromUri, remoteUri);
+
+		looperThread.post(new Runnable() {
+			@Override
+			public void run() {
+				dialSync(call);
+			}
+		});
 
 		return call;
 	}
 
 	@Override
-	public Call dial(String remoteUri) {
-		if (localUris.size() == 0) {
-			errorHandler.onCallError(null, new KurentoException(
-					"Cannot dial. There is not any local URI."));
-			return null;
-		}
+	public Call dial(String remoteUri) throws KurentoException {
+		if (localUris.size() == 0)
+			throw new KurentoException(
+					"Cannot dial. There is not any local URI.");
 
 		String localUri = localUris.keySet().iterator().next();
 		return dial(localUri, remoteUri);
