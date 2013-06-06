@@ -744,6 +744,7 @@ public class SipUA extends UA {
 
 	private synchronized void dialSync(SipCall call) {
 		if (sipStack == null) {
+			call.release();
 			errorHandler.onCallError(call, new KurentoException(
 					"Cannot dial. SIP Stack is not enabled"));
 			return;
