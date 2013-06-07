@@ -359,7 +359,7 @@ public class SipCall extends BaseCall {
 				// Do not raise events
 			} catch (KurentoSipException e) {
 				log.warn("Unable to terminate call canceled by remote party", e);
-				// Controller doesn't know about this call. Do not signall
+				// Controller doesn't know about this call. Do not signal
 				// anything
 			}
 			release();
@@ -457,9 +457,7 @@ public class SipCall extends BaseCall {
 		this.outgoingInitiatingRequest = outgoingTransaction;
 
 		stateTransition(State.OUTGOING_RINGING);
-		if (request2Terminate) {
-			// Call has been canceled while building SDP
+		if (request2Terminate) // Call has been canceled while building SDP
 			localCallCancel();
-		}
 	}
 }
