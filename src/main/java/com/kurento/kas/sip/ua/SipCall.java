@@ -233,9 +233,7 @@ public class SipCall extends BaseCall {
 	}
 
 	private void localCallCancel() {
-		log.debug("localCallCancel");
 		Request cancelReq;
-		// Create cancel request
 		try {
 			cancelReq = outgoingInitiatingRequest.getClientTransaction()
 					.createCancel();
@@ -244,13 +242,11 @@ public class SipCall extends BaseCall {
 			return;
 		}
 
-		// Send cancel request
 		try {
 			new CCancel(cancelReq, sipUA);
 			// Do not notify. Wait for reception of response 487
 		} catch (KurentoSipException e) {
 			log.info("Too late to cancel call: " + getCallInfo());
-			// Try BYE
 			try {
 				new CBye(sipUA, this);
 				terminatedCall(TerminateReason.LOCAL_HANGUP);
