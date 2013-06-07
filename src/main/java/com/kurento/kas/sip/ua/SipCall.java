@@ -110,7 +110,6 @@ public class SipCall extends BaseCall {
 
 	@Override
 	public void hangup(RejectCode code) {
-		// Label this call to be terminated as soon as possible
 		request2Terminate = true;
 		sipUA.activedCalls.remove(this);
 
@@ -124,24 +123,21 @@ public class SipCall extends BaseCall {
 			// before response is received
 			log.debug("Request to terminate pending outgoing call: "
 					+ getCallInfo());
-			// Send cancel request
 			localCallCancel();
 		} else if (State.INCOMING_RINGING.equals(state)) {
 			// TU requested CALL reject
-			log.debug("Request to reject incoming call: " + getCallInfo());
+			log.debug("Request to reject incoming call " + getCallInfo()
+					+ " with code " + code);
 			// This code competes with the remote cancel. First one to execute
 			// will cause the other to throw an exception avoiding duplicate
 			// events
 			// Change state before response to avoid concurrent events with
 			// remote CANCEL events
 			stateTransition(State.TERMINATED);
-			log.debug("Request to reject a call with code: " + code);
-			int responseCode;
-			if (RejectCode.BUSY.equals(code)) {
+			int responseCode = Response.DECLINE;
+			if (RejectCode.BUSY.equals(code))
 				responseCode = Response.BUSY_HERE;
-			} else {
-				responseCode = Response.DECLINE;
-			}
+
 			try {
 				incomingInitiatingRequest.sendResponse(responseCode, null);
 			} catch (KurentoSipException e) {
@@ -166,10 +162,7 @@ public class SipCall extends BaseCall {
 		} else if (State.TERMINATED.equals(state)) {
 			log.info("Call already terminated when hangup request,"
 					+ dialog.getDialogId() + ": " + getCallInfo());
-		}
-
-		// Do not accept call to this method
-		else {
+		} else {
 			log.warn("Bad hangup. Unable to hangup a call (" + getCallInfo()
 					+ ") with current state: " + state);
 		}
