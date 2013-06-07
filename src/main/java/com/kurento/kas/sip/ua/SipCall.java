@@ -83,29 +83,23 @@ public class SipCall extends BaseCall {
 
 	@Override
 	public void accept() throws KurentoException {
-		// Accept only if there are incoming transactions
-		log.debug("Accept Call: " + getCallInfo());
+		// Accept only if there are incoming transactions and INCOMING RINIGING
+		if (incomingInitiatingRequest == null
+				|| !State.INCOMING_RINGING.equals(state))
+			throw new KurentoException("There is not any incoming call");
 
-		if (incomingInitiatingRequest == null) {
-			return; // Silently
-		}
-
-		// Accept: only possible for INCOMING RINIGING call
-		if (State.INCOMING_RINGING.equals(state)) {
-			stateTransition(State.CONFIRMED);
-			try {
-				String localDescription = getLocalDescription();
-				if (localDescription == null)
-					callFailed(new KurentoException("Local description not set"));
-				else
-					incomingInitiatingRequest.sendResponse(Response.OK,
-							localDescription.getBytes());
-				incomingInitiatingRequest = null;
-			} catch (KurentoSipException e) {
-				// SIP failures are noti
-				callFailed(new KurentoException("Unable to send SIP response",
-						e));
-			}
+		log.debug("Accept call " + getCallInfo());
+		stateTransition(State.CONFIRMED);
+		try {
+			String localDescription = getLocalDescription();
+			if (localDescription == null)
+				callFailed(new KurentoException("Local description not set"));
+			else
+				incomingInitiatingRequest.sendResponse(Response.OK,
+						localDescription.getBytes());
+			incomingInitiatingRequest = null;
+		} catch (KurentoSipException e) {
+			callFailed(new KurentoException("Unable to send SIP response", e));
 		}
 	}
 
@@ -231,7 +225,6 @@ public class SipCall extends BaseCall {
 		else
 			arrow = " >>> ";
 		return localUri + arrow + remoteUri;
-
 	}
 
 	@Override
