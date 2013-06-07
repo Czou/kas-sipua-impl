@@ -327,9 +327,8 @@ public abstract class CTransaction extends Transaction {
 
 	public void processTimeout() {
 		log.info("Client transaction timeout");
-		if (call != null) {
+		if (call != null)
 			call.callTimeout();
-		}
 	}
 
 }

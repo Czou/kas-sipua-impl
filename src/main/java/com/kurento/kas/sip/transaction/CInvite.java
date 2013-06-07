@@ -113,7 +113,7 @@ public class CInvite extends CTransaction {
 			log.info("<<<<<<< " + statusCode + " TERMINATED: dialog: "
 					+ this.dialog.getDialogId() + ", state: "
 					+ dialog.getState());
-			// Notify successfull call cancel
+			// Notify successful call cancel
 			log.info("<<<<<<< " + statusCode
 					+ " Session cancel confirmed by remote peer: dialog: "
 					+ this.dialog + ", state: " + dialog.getState());
