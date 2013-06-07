@@ -505,7 +505,7 @@ public class SipUA extends UA {
 		}
 	}
 
-	private synchronized void configureSipStack() {
+	private void configureSipStack() {
 		looperThread.post(new Runnable() {
 			@Override
 			public void run() {
