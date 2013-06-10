@@ -200,14 +200,15 @@ public class SipUA extends UA {
 		return context;
 	}
 
-	private synchronized void terminateSync() {
+	private void terminateSync() {
 		sharedPreferences
 				.unregisterOnSharedPreferenceChangeListener(onSharedPreferenceChangeListener);
 		context.unregisterReceiver(networkStateReceiver);
 
-		terminateSipStack();
+		terminateSipStackSync();
 		sipUaTerminated = true;
 		uaHandler.onTerminated(SipUA.this);
+		looperThread.quit();
 	}
 
 	@Override
@@ -379,14 +380,14 @@ public class SipUA extends UA {
 	//
 	// ////////////////////////////
 
-	private synchronized void configureSipStackSync() {
+	private void configureSipStackSync() {
 		if (sipUaTerminated) {
 			log.warn("Cannot configure SIP Stack. UA is terminated.");
 			return;
 		}
 
 		try {
-			terminateSipStack(); // Just in case
+			terminateSipStackSync(); // Just in case
 
 			localAddress = NetworkUtilities.getLocalInterface(null,
 					preferences.isSipOnlyIpv4());
@@ -496,9 +497,9 @@ public class SipUA extends UA {
 
 			// Re-register all local contacts
 			for (SipRegister reg : localUris.values())
-				register(reg);
+				registerSync(reg);
 		} catch (Throwable t) {
-			terminateSipStack();
+			terminateSipStackSync();
 			log.error("Error configuring SIP stack", t);
 			errorHandler.onUAError(SipUA.this, new KurentoException(
 					"Unable to instantiate a SIP stack", t));
@@ -514,7 +515,7 @@ public class SipUA extends UA {
 		});
 	}
 
-	private synchronized void terminateSipStack() {
+	private void terminateSipStackSync() {
 		if (sipKeepAliveTimerTask != null) {
 			log.info("Stop SIP keep alive");
 			wakeupTimer.cancel(sipKeepAliveTimerTask);
@@ -580,7 +581,7 @@ public class SipUA extends UA {
 	//
 	// ////////////////
 
-	private synchronized void register(SipRegister sipReg) {
+	private void registerSync(SipRegister sipReg) {
 		if (sipStack == null) {
 			log.warn("Cannot register. SIP Stack is not enabled");
 			return;
@@ -604,7 +605,7 @@ public class SipUA extends UA {
 			wakeupTimer.cancel(sipReg.getSipRegisterTimerTask());
 
 			if (preferences.isPersistentConnection()) {
-				registerPersistentTcp(sipReg, 0);
+				registerPersistentTcpSync(sipReg, 0);
 			} else {
 				CRegister creg = new CRegister(this, sipReg,
 						preferences.getSipRegExpires());
@@ -622,7 +623,7 @@ public class SipUA extends UA {
 		}
 	}
 
-	private synchronized void reRegisterSync() {
+	private void reRegisterSync() {
 		InetAddress localAddress;
 		try {
 			localAddress = NetworkUtilities.getLocalInterface(null,
@@ -660,8 +661,7 @@ public class SipUA extends UA {
 		});
 	}
 
-	public synchronized void registerPersistentTcp(SipRegister sipReg,
-			int expires) {
+	private void registerPersistentTcpSync(SipRegister sipReg, int expires) {
 		try {
 			CRegisterPersistentTcp cunreg = new CRegisterPersistentTcp(this,
 					sipReg, expires);
@@ -676,7 +676,17 @@ public class SipUA extends UA {
 		}
 	}
 
-	private synchronized void registerSync(Register register) {
+	public void registerPersistentTcp(final SipRegister sipReg,
+			final int expires) {
+		looperThread.post(new Runnable() {
+			@Override
+			public void run() {
+				registerPersistentTcpSync(sipReg, expires);
+			}
+		});
+	}
+
+	private void registerSync(Register register) {
 		// TODO Implement STUN in order to get public transport address. This
 		// is not accurate at all, but at least give the chance
 		// TODO STUN enabled then use public, STUN disabled then use private.
@@ -694,7 +704,7 @@ public class SipUA extends UA {
 			localUris.put(register.getUri(), sipReg);
 		}
 
-		register(sipReg);
+		registerSync(sipReg);
 	}
 
 	@Override
@@ -707,7 +717,7 @@ public class SipUA extends UA {
 		});
 	}
 
-	private synchronized void unregisterSync(Register register) {
+	private void unregisterSync(Register register) {
 		try {
 			log.debug("Request to unregister: " + register.getUri());
 
@@ -742,7 +752,7 @@ public class SipUA extends UA {
 		});
 	}
 
-	private synchronized void dialSync(SipCall call) {
+	private void dialSync(SipCall call) {
 		if (sipStack == null) {
 			call.release();
 			errorHandler.onCallError(call, new KurentoException(
@@ -1076,7 +1086,7 @@ public class SipUA extends UA {
 
 	}
 
-	private synchronized void checkTCPConnectionAliveSync() {
+	private void checkTCPConnectionAliveSync() {
 		if (sipStack == null)
 			return;
 
@@ -1180,6 +1190,10 @@ public class SipUA extends UA {
 				log.error("Cannot run", e);
 				return false;
 			}
+		}
+
+		public void quit() {
+			mHandler.getLooper().quit();
 		}
 	}
 
