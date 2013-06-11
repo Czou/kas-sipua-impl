@@ -24,6 +24,7 @@ import javax.sip.ClientTransaction;
 import javax.sip.Dialog;
 import javax.sip.DialogState;
 import javax.sip.InvalidArgumentException;
+import javax.sip.ObjectInUseException;
 import javax.sip.ResponseEvent;
 import javax.sip.SipException;
 import javax.sip.TransactionUnavailableException;
@@ -133,7 +134,6 @@ public abstract class CTransaction extends Transaction {
 				MaxForwardsHeader maxForwardsHeader = buildMaxForwardsHeader();
 				UserAgentHeader userAgentHeader = buildUserAgentHeader();
 				ContactHeader contactHeader = buildContactHeader();
-
 				SipURI requestURI = buildRequestURI();
 
 				// Create Request
@@ -142,7 +142,6 @@ public abstract class CTransaction extends Transaction {
 						viaHeaders, maxForwardsHeader);
 				request.addHeader(userAgentHeader);
 				request.addHeader(contactHeader);
-
 			} catch (ParseException e) {
 				throw new KurentoSipException(
 						"Parse error while creating SIP client transaction", e);
@@ -291,6 +290,14 @@ public abstract class CTransaction extends Transaction {
 				clientTransaction.sendRequest();
 		} catch (SipException e) {
 			throw new KurentoSipException("Sip Exception sending  request", e);
+		}
+	}
+
+	public void terminate() throws KurentoSipException {
+		try {
+			clientTransaction.terminate();
+		} catch (ObjectInUseException e) {
+			throw new KurentoSipException("Unable to terminate transaction", e);
 		}
 	}
 

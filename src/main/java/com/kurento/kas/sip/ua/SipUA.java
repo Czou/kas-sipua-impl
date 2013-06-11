@@ -145,6 +145,7 @@ public class SipUA extends UA {
 	private CallTerminatedHandler callTerminatedHandler;
 
 	private final Map<String, SipRegister> localUris = new ConcurrentHashMap<String, SipRegister>();
+	final Set<CRegister> pendingCRegisters = new CopyOnWriteArraySet<CRegister>();
 	final Set<Call> activedCalls = new CopyOnWriteArraySet<Call>();
 
 	private final Preferences preferences;
@@ -609,6 +610,7 @@ public class SipUA extends UA {
 			} else {
 				CRegister creg = new CRegister(this, sipReg,
 						preferences.getSipRegExpires());
+				pendingCRegisters.add(creg);
 				creg.sendRequest();
 			}
 		} catch (ParseException e) {
@@ -624,6 +626,15 @@ public class SipUA extends UA {
 	}
 
 	private void reRegisterSync() {
+		for (CRegister creg : pendingCRegisters) {
+			try {
+				creg.terminate();
+			} catch (KurentoSipException e) {
+				log.warn("Unable to terminate client transaction for register",
+						e);
+			}
+		}
+
 		InetAddress localAddress;
 		try {
 			localAddress = NetworkUtilities.getLocalInterface(null,
@@ -665,6 +676,7 @@ public class SipUA extends UA {
 		try {
 			CRegisterPersistentTcp cunreg = new CRegisterPersistentTcp(this,
 					sipReg, expires);
+			pendingCRegisters.add(cunreg);
 			cunreg.sendRequest();
 		} catch (KurentoSipException e) {
 			log.error("Unable to register", e);
@@ -731,6 +743,7 @@ public class SipUA extends UA {
 
 			wakeupTimer.cancel(sipReg.getSipRegisterTimerTask());
 			CRegister creg = new CRegister(this, sipReg, 0);
+			pendingCRegisters.add(creg);
 			creg.sendRequest();
 			localUris.remove(register.getUri());
 		} catch (KurentoSipException e) {
@@ -971,6 +984,9 @@ public class SipUA extends UA {
 			} else {
 				log.info("Client Transaction terminated with ID: "
 						+ trnsTerminatedEv.getClientTransaction().getBranchId());
+				CTransaction cTrns = (CTransaction) trnsTerminatedEv
+						.getClientTransaction().getApplicationData();
+				pendingCRegisters.remove(cTrns);
 			}
 		}
 	}
