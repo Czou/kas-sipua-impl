@@ -23,8 +23,10 @@ import javax.sip.DialogState;
 import javax.sip.InvalidArgumentException;
 import javax.sip.ResponseEvent;
 import javax.sip.SipException;
+import javax.sip.header.AllowHeader;
 import javax.sip.header.CSeqHeader;
 import javax.sip.header.ContentTypeHeader;
+import javax.sip.header.SupportedHeader;
 import javax.sip.message.Request;
 import javax.sip.message.Response;
 
@@ -46,19 +48,10 @@ public class CInvite extends CTransaction {
 	public CInvite(SipUA sipUA, SipCall call) throws KurentoSipException {
 		super(Request.INVITE, sipUA, call);
 
-		// INVITE REQUIRES TO INCREASE SEQUENCE NUMBER
+		// INVITE requires to increase sequence number
 		CTransaction.cSeqNumber++;
-		log.debug("CTransaction.cSeqNumber: " + CTransaction.cSeqNumber);
-
-		// CInvite.this.sendRequest();
-		// CInvite.this.call.outgoingCall(CInvite.this);
-
-		// Add special headers for INVITE
-		// In the android implementation the contact header is added
-		// automatically and adding it again causes an error
-		// request.addHeader(buildContactHeader()); // Contact
-		request.addHeader(buildAllowHeader()); // Allow
-		request.addHeader(buildSupportedHeader()); // SupportHeader
+		request.addHeader(buildAllowHeader());
+		request.addHeader(buildSupportedHeader());
 
 		log.debug("Creating offer...");
 		CreateSdpOfferObserver o = new CreateSdpOfferObserver() {
@@ -83,6 +76,27 @@ public class CInvite extends CTransaction {
 		};
 		call.addCreateSdpOfferObserver(o);
 		call.createSdpOffer(o);
+	}
+
+	private AllowHeader buildAllowHeader() throws KurentoSipException {
+		try {
+			// Dialog is null here. Make sure you don't use it
+			return sipUA.getHeaderFactory().createAllowHeader(
+					"INVITE,ACK,CANCEL,BYE");
+		} catch (ParseException e) {
+			throw new KurentoSipException(
+					"Parse Exception building Header Factory", e);
+		}
+	}
+
+	private SupportedHeader buildSupportedHeader() throws KurentoSipException {
+		try {
+			// Dialog is null here. Make sure you don't use it
+			return sipUA.getHeaderFactory().createSupportedHeader("100rel");
+		} catch (ParseException e) {
+			throw new KurentoSipException(
+					"Parse Exception building Support header", e);
+		}
 	}
 
 	@Override

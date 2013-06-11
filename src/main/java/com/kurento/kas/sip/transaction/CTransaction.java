@@ -29,15 +29,12 @@ import javax.sip.SipException;
 import javax.sip.TransactionUnavailableException;
 import javax.sip.address.Address;
 import javax.sip.address.SipURI;
-import javax.sip.header.AcceptHeader;
-import javax.sip.header.AllowHeader;
 import javax.sip.header.CSeqHeader;
 import javax.sip.header.CallIdHeader;
 import javax.sip.header.ContactHeader;
 import javax.sip.header.ContentTypeHeader;
 import javax.sip.header.FromHeader;
 import javax.sip.header.MaxForwardsHeader;
-import javax.sip.header.SupportedHeader;
 import javax.sip.header.ToHeader;
 import javax.sip.header.UserAgentHeader;
 import javax.sip.header.ViaHeader;
@@ -188,7 +185,7 @@ public abstract class CTransaction extends Transaction {
 		return sipUA.getSipProvider().getNewCallId();
 	}
 
-	FromHeader buildFromHeader() throws ParseException {
+	private FromHeader buildFromHeader() throws ParseException {
 		// Dialog is null here. Make sure you don't use it
 		String localTag = getNewRandomTag();
 		Address localAddress = sipUA.getAddressFactory()
@@ -197,14 +194,14 @@ public abstract class CTransaction extends Transaction {
 				.createFromHeader(localAddress, localTag);
 	}
 
-	ToHeader buildToHeader() throws ParseException {
+	private ToHeader buildToHeader() throws ParseException {
 		// Dialog is null here. Make sure you don't use it
 		Address remoteAddress = sipUA.getAddressFactory().createAddress(
 				remoteUri);
 		return sipUA.getHeaderFactory().createToHeader(remoteAddress, null);
 	}
 
-	List<ViaHeader> buildViaHeaders() throws ParseException,
+	private List<ViaHeader> buildViaHeaders() throws ParseException,
 			InvalidArgumentException {
 		// Dialog is null here. Make sure you don't use it
 		List<ViaHeader> viaHeaders = new ArrayList<ViaHeader>();
@@ -218,40 +215,20 @@ public abstract class CTransaction extends Transaction {
 		return viaHeaders;
 	}
 
-	CSeqHeader buildCSeqHeader() throws ParseException,
+	private CSeqHeader buildCSeqHeader() throws ParseException,
 			InvalidArgumentException {
 		// Dialog is null here. Make sure you don't use it
 		return sipUA.getHeaderFactory().createCSeqHeader(cSeqNumber, method);
 	}
 
-	MaxForwardsHeader buildMaxForwardsHeader() throws InvalidArgumentException {
+	private MaxForwardsHeader buildMaxForwardsHeader()
+			throws InvalidArgumentException {
 		// Dialog is null here. Make sure you don't use it
 		return sipUA.getHeaderFactory().createMaxForwardsHeader(MAX_FORWARDS);
 	}
 
-	AllowHeader buildAllowHeader() throws KurentoSipException {
-		try {
-			// Dialog is null here. Make sure you don't use it
-			return sipUA.getHeaderFactory().createAllowHeader(
-					"INVITE,ACK,CANCEL,BYE");
-		} catch (ParseException e) {
-			throw new KurentoSipException(
-					"Parse Exception building Header Factory", e);
-		}
-	}
-
-	SupportedHeader buildSupportedHeader() throws KurentoSipException {
-		try {
-			// Dialog is null here. Make sure you don't use it
-			return sipUA.getHeaderFactory().createSupportedHeader("100rel");
-		} catch (ParseException e) {
-			throw new KurentoSipException(
-					"Parse Exception building Support header", e);
-		}
-
-	}
-
-	ContentTypeHeader buildContentTypeHeader() throws KurentoSipException {
+	private ContentTypeHeader buildContentTypeHeader()
+			throws KurentoSipException {
 		// Dialog is null here. Make sure you don't use it
 		try {
 			return sipUA.getHeaderFactory().createContentTypeHeader(
@@ -262,25 +239,19 @@ public abstract class CTransaction extends Transaction {
 		}
 	}
 
-	ContactHeader buildContactHeader() throws KurentoSipException {
+	private ContactHeader buildContactHeader() throws KurentoSipException {
 		// Dialog is null here. Make sure you don't use it
 		ContactHeader contact = sipUA.getHeaderFactory().createContactHeader(
 				sipUA.getContactAddress(localUri));
 		return contact;
 	}
 
-	AcceptHeader buildAcceptHeader() throws ParseException {
-		// Dialog is null here. Make sure you don't use it
-		return sipUA.getHeaderFactory()
-				.createAcceptHeader("application", "sdp");
-	}
-
-	UserAgentHeader buildUserAgentHeader() throws ParseException {
+	private UserAgentHeader buildUserAgentHeader() throws ParseException {
 		// Dialog is null here. Make sure you don't use it
 		return sipUA.getUserAgentHeader();
 	}
 
-	SipURI buildRequestURI() throws ParseException {
+	private SipURI buildRequestURI() throws ParseException {
 		// Dialog is null here. Make sure you don't use it
 		return (SipURI) sipUA.getAddressFactory().createAddress(remoteUri)
 				.getURI();
