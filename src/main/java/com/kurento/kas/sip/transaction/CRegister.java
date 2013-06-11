@@ -175,8 +175,7 @@ public class CRegister extends CTransaction {
 			request.setHeader(proxyAuthenticateHeader);
 		}
 
-		sendRequest(null); // 2nd request with authentication
-
+		sendRequest(); // 2nd request with authentication
 	}
 
 	// AuthenticationHearder RFC2617 construction for request digest without qop
