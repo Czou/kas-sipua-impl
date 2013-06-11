@@ -19,6 +19,7 @@ package com.kurento.kas.sip.transaction;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
+import java.util.Locale;
 
 import javax.sip.InvalidArgumentException;
 import javax.sip.ResponseEvent;
@@ -212,41 +213,35 @@ public class CRegister extends CTransaction {
 			authorization.setResponse(respon);
 			authorization.setAlgorithm(alg);
 			authorization.setOpaque(opaque);
-
 		} catch (ParseException e) {
 			throw new KurentoSipException(
 					"Error generating authentication hearder", e);
+		} catch (NoSuchAlgorithmException e) {
+			throw new KurentoSipException(
+					"Error generating authentication hearder", e);
 		}
-		return authorization;
 
+		return authorization;
 	}
 
 	private String getAuthResponse(String userName, String password,
 			String realm, String method, String uri, String nonce,
-			String algorithm) {
-		// String cnonce = null;
-		MessageDigest messageDigest = null;
-		try {
-			messageDigest = MessageDigest.getInstance(algorithm);
-		} catch (NoSuchAlgorithmException e) {
-			log.error(e.toString());
-		}
+			String algorithm) throws NoSuchAlgorithmException {
+		MessageDigest messageDigest = MessageDigest.getInstance(algorithm);
+
 		// A1
 		String A1 = userName + ":" + realm + ":" + password;
 		byte mdbytes[] = messageDigest.digest(A1.getBytes());
 		String HA1 = toHexString(mdbytes);
 		log.debug("DigestClientAuthenticationMethod for HA1:" + HA1 + "!");
+
 		// A2
-		String A2 = method.toUpperCase() + ":" + uri;
+		String A2 = method.toUpperCase(Locale.getDefault()) + ":" + uri;
 		mdbytes = messageDigest.digest(A2.getBytes());
 		String HA2 = toHexString(mdbytes);
 		log.debug("DigestClientAuthenticationMethod for HA2:" + HA2 + "!");
-		// KD
-		String KD = HA1 + ":" + nonce;
-		// if (cnonce != null) {
-		// if(cnonce.length()>0) KD += ":" + cnonce;
-		// }
-		KD += ":" + HA2;
+
+		String KD = HA1 + ":" + nonce + ":" + HA2;
 		mdbytes = messageDigest.digest(KD.getBytes());
 		String response = toHexString(mdbytes);
 
@@ -255,7 +250,7 @@ public class CRegister extends CTransaction {
 		return response;
 	}
 
-	public static String toHexString(byte b[]) {
+	private static String toHexString(byte b[]) {
 		int pos = 0;
 		char[] c = new char[b.length * 2];
 		for (int i = 0; i < b.length; i++) {
