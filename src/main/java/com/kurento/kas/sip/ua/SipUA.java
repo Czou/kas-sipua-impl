@@ -500,8 +500,8 @@ public class SipUA extends UA {
 			for (SipRegister reg : localUris.values())
 				registerSync(reg);
 		} catch (Throwable t) {
-			terminateSipStackSync();
 			log.error("Error configuring SIP stack", t);
+			terminateSipStackSync();
 			errorHandler.onUAError(SipUA.this, new KurentoException(
 					"Unable to instantiate a SIP stack", t));
 		}
