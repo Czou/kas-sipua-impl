@@ -89,7 +89,7 @@ public class CRegister extends CTransaction {
 		int statusCode = response.getStatusCode();
 
 		if (statusCode == Response.OK) {
-			log.info("<<<<<<< 200 OK: Register sucessfull for user: "
+			log.info("<<<<<<< 200 OK: Register sucessful for user: "
 					+ register.getUri());
 			if (expires > 0) {
 				long period = (long) (expires * 1000 * 0.5);
