@@ -27,6 +27,7 @@ import javax.sip.InvalidArgumentException;
 import javax.sip.ObjectInUseException;
 import javax.sip.ResponseEvent;
 import javax.sip.SipException;
+import javax.sip.SipProvider;
 import javax.sip.TransactionUnavailableException;
 import javax.sip.address.Address;
 import javax.sip.address.SipURI;
@@ -163,9 +164,12 @@ public abstract class CTransaction extends Transaction {
 	}
 
 	private void createClientTransaction() throws KurentoSipException {
+		SipProvider sipProvider = sipUA.getSipProvider();
+		if (sipProvider == null)
+			throw new KurentoSipException(
+					"Unable to create client transaction, SIP Provider not initated");
 		try {
-			clientTransaction = sipUA.getSipProvider().getNewClientTransaction(
-					request);
+			clientTransaction = sipProvider.getNewClientTransaction(request);
 			clientTransaction.setApplicationData(this);
 
 			// get dialog again
