@@ -184,8 +184,12 @@ public abstract class CTransaction extends Transaction {
 	// // ALL THIS HELPER FUNCTIONS ARE CALLED WHEN DIALOG=NULL // //
 
 	private CallIdHeader buildCallIdHeader() throws KurentoSipException {
+		SipProvider sipProvider = sipUA.getSipProvider();
+		if (sipProvider == null)
+			throw new KurentoSipException(
+					"Unable to create client transaction, SIP Provider not initated");
 		// Dialog is null here. Make sure you don't use it
-		return sipUA.getSipProvider().getNewCallId();
+		return sipProvider.getNewCallId();
 	}
 
 	private FromHeader buildFromHeader() throws ParseException {
