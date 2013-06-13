@@ -225,17 +225,14 @@ public class CInvite extends CTransaction {
 			String msg = "Sip Exception while sending ACK for transaction: "
 					+ this.dialog.getDialogId();
 			throw new KurentoSipException(msg, e);
-
 		} catch (ParseException e) {
 			String msg = "Unssupported SDP while sending ACK request for transaction: "
 					+ this.dialog.getDialogId();
 			throw new KurentoSipException(msg, e);
-
 		}
 	}
 
 	private void processSdpAnswer(byte[] rawContent) {
-
 		call.setRemoteSdp(new String(rawContent), new SetRemoteSdpObserver() {
 			@Override
 			public void onSuccess() {
