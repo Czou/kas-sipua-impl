@@ -190,6 +190,9 @@ public class SipUA extends UA {
 		this.noWakeupTimer = new AlarmUaTimer(context,
 				AlarmManager.ELAPSED_REALTIME);
 		createDefaultHandlers();
+
+		initSipStack();
+
 		PeerConnectionFactory.initializeAndroidGlobals(context);
 
 		IntentFilter intentFilter = new IntentFilter();
@@ -206,6 +209,18 @@ public class SipUA extends UA {
 				.unregisterOnSharedPreferenceChangeListener(onSharedPreferenceChangeListener);
 		context.unregisterReceiver(networkStateReceiver);
 
+		if (sipStack != null && sipProvider != null) {
+			for (Call call : activedCalls) {
+				call.hangup();
+				activedCalls.remove(call);
+			}
+
+			// Unregister all local contacts
+			for (SipRegister reg : localUris.values())
+				unregisterSync(reg.getRegister());
+		}
+
+		terminateSipProviderSync();
 		terminateSipStackSync();
 		sipUaTerminated = true;
 		uaHandler.onTerminated(SipUA.this);
@@ -282,7 +297,7 @@ public class SipUA extends UA {
 		return userAgentHeader;
 	}
 
-	public SipProvider getSipProvider() {
+	public synchronized SipProvider getSipProvider() {
 		return sipProvider;
 	}
 
@@ -381,7 +396,7 @@ public class SipUA extends UA {
 	//
 	// ////////////////////////////
 
-	private void configureSipStackSync() {
+	private void initSipStackSync() {
 		if (sipUaTerminated) {
 			log.warn("Cannot configure SIP Stack. UA is terminated.");
 			return;
@@ -389,9 +404,6 @@ public class SipUA extends UA {
 
 		try {
 			terminateSipStackSync(); // Just in case
-
-			localAddress = NetworkUtilities.getLocalInterface(null,
-					preferences.isSipOnlyIpv4());
 
 			log.info("starting JAIN-SIP stack initializacion ...");
 
@@ -454,10 +466,45 @@ public class SipUA extends UA {
 				log.error("could not instantiate SSL networking", e);
 				throw e;
 			}
+		} catch (Throwable t) {
+			terminateSipStackSync();
+			log.error("Error initiating SIP stack", t);
+			errorHandler.onUAError(SipUA.this, new KurentoException(
+					"Unable to initiate SIP stack", t));
+		}
+	}
 
-			// TODO get socket from SipStackExt to perform STUN test
-			// TODO Verify socket transport to see if it is compatible
-			// with STUN
+	private void initSipStack() {
+		looperThread.post(new Runnable() {
+			@Override
+			public void run() {
+				initSipStackSync();
+			}
+		});
+	}
+
+	private void terminateSipStackSync() {
+		terminateSipProviderSync();
+		if (sipStack != null) {
+			sipStack.stop();
+			sipStack = null;
+			log.info("SIP stack terminated");
+		}
+	}
+
+	private synchronized void initSipProviderSync() {
+		// TODO get socket from SipStackExt to perform STUN test
+		// TODO Verify socket transport to see if it is compatible
+		// with STUN
+
+		try {
+			terminateSipProviderSync(); // Just in case
+
+			if (sipStack == null)
+				initSipStackSync();
+
+			localAddress = NetworkUtilities.getLocalInterface(null,
+					preferences.isSipOnlyIpv4());
 
 			// Create a listening point per interface
 			log.info("Create listening point at: " + localAddress + ":"
@@ -500,23 +547,23 @@ public class SipUA extends UA {
 			for (SipRegister reg : localUris.values())
 				registerSync(reg);
 		} catch (Throwable t) {
-			log.error("Error configuring SIP stack", t);
-			terminateSipStackSync();
+			log.error("Error initiating SIP provider", t);
+			terminateSipProviderSync();
 			errorHandler.onUAError(SipUA.this, new KurentoException(
-					"Unable to instantiate a SIP stack", t));
+					"Unable to initiate SIP provider", t));
 		}
 	}
 
-	private void configureSipStack() {
+	private void initSipProvider() {
 		looperThread.post(new Runnable() {
 			@Override
 			public void run() {
-				configureSipStackSync();
+				initSipProviderSync();
 			}
 		});
 	}
 
-	private void terminateSipStackSync() {
+	private synchronized void terminateSipProviderSync() {
 		if (sipKeepAliveTimerTask != null) {
 			log.info("Stop SIP keep alive");
 			wakeupTimer.cancel(sipKeepAliveTimerTask);
@@ -528,15 +575,6 @@ public class SipUA extends UA {
 		}
 
 		if (sipStack != null && sipProvider != null) {
-			for (Call call : activedCalls) {
-				call.hangup();
-				activedCalls.remove(call);
-			}
-
-			// Unregister all local contacts
-			for (SipRegister reg : localUris.values())
-				unregisterSync(reg.getRegister());
-
 			log.info("Delete SIP listening points");
 			for (ListeningPoint lp : sipProvider.getListeningPoints()) {
 				try {
@@ -553,11 +591,19 @@ public class SipUA extends UA {
 			} catch (ObjectInUseException e) {
 				log.warn("Unable to delete SIP provider");
 			}
-			sipStack.stop();
+
 			sipProvider = null;
-			sipStack = null;
-			log.info("SIP stack terminated");
+			log.info("SIP provider terminated");
 		}
+	}
+
+	private void terminateSipProvider() {
+		looperThread.post(new Runnable() {
+			@Override
+			public void run() {
+				terminateSipProviderSync();
+			}
+		});
 	}
 
 	private void configureSipKeepAlive() {
@@ -583,8 +629,8 @@ public class SipUA extends UA {
 	// ////////////////
 
 	private void registerSync(SipRegister sipReg) {
-		if (sipStack == null) {
-			log.warn("Cannot register. SIP Stack is not enabled");
+		if (sipProvider == null) {
+			log.warn("Cannot register. SIP Provider is not enabled");
 			return;
 		}
 
@@ -766,10 +812,10 @@ public class SipUA extends UA {
 	}
 
 	private void dialSync(SipCall call) {
-		if (sipStack == null) {
+		if (sipProvider == null) {
 			call.release();
 			errorHandler.onCallError(call, new KurentoException(
-					"Cannot dial. SIP Stack is not enabled"));
+					"Cannot dial. SIP Provider is not enabled"));
 			return;
 		}
 
@@ -852,8 +898,11 @@ public class SipUA extends UA {
 			try {
 				if ((serverTransaction = requestEvent.getServerTransaction()) == null) {
 					// Create transaction
-					serverTransaction = sipProvider
-							.getNewServerTransaction(requestEvent.getRequest());
+					synchronized (this) {
+						serverTransaction = sipProvider
+								.getNewServerTransaction(requestEvent
+										.getRequest());
+					}
 				}
 			} catch (TransactionAlreadyExistsException e) {
 				log.warn("Request already has an active transaction. It shouldn't be delivered by SipStack to the SIPU-UA");
@@ -1151,10 +1200,10 @@ public class SipUA extends UA {
 
 				if (ni.getState().equals(NetworkInfo.State.CONNECTED)) {
 					log.debug("Network connected");
-					configureSipStack();
+					initSipProvider();
 				} else {
 					log.debug("Network not connected");
-					terminate();
+					terminateSipProvider();
 				}
 			}
 		}
@@ -1173,7 +1222,8 @@ public class SipUA extends UA {
 					|| Preferences.SIP_PROXY_SERVER_ADDRESS.equals(key)
 					|| Preferences.SIP_PROXY_SERVER_PORT.equals(key)
 					|| Preferences.SIP_LOCAL_PORT.equals(key)) {
-				configureSipStack();
+				initSipStack();
+				initSipProvider();
 			} else if (Preferences.SIP_REG_EXPIRES.equals(key)) {
 				reRegister();
 			} else if (Preferences.ENABLE_SIP_KEEP_ALIVE.equals(key)
