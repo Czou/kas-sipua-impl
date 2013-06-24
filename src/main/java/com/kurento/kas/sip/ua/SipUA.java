@@ -636,6 +636,7 @@ public class SipUA extends UA {
 
 		Register reg = sipReg.getRegister();
 		try {
+			// TODO: if sipReg already has a contactAddress, use it
 			String contactAddressStr = "sip:" + reg.getUser() + "@"
 					+ localAddress.getHostAddress() + ":"
 					+ preferences.getSipLocalPort();
