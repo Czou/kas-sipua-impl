@@ -118,11 +118,6 @@ public class KurentoSslNetworkLayer implements NetworkLayer {
 		return new ServerSocket(port, backlog, bindAddress);
 	}
 
-	public Socket createSocket(InetAddress address, int port)
-			throws IOException {
-		return new Socket(address, port);
-	}
-
 	public DatagramSocket createDatagramSocket() throws SocketException {
 		return new DatagramSocket();
 	}
@@ -147,6 +142,11 @@ public class KurentoSslNetworkLayer implements NetworkLayer {
 			InetAddress myAddress) throws IOException {
 		return (SSLSocket) sslSocketFactory.createSocket(address, port,
 				myAddress, 0);
+	}
+
+	public Socket createSocket(InetAddress address, int port)
+			throws IOException {
+		return new Socket(address, port);
 	}
 
 	public Socket createSocket(InetAddress address, int port,
