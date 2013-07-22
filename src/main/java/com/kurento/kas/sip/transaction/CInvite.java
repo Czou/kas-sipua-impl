@@ -33,6 +33,7 @@ import javax.sip.message.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.kurento.kas.call.TerminatedCall.Reason;
 import com.kurento.kas.call.impl.CallBase.CreateSdpOfferObserver;
 import com.kurento.kas.call.impl.CallBase.SetRemoteSdpObserver;
 import com.kurento.kas.sip.ua.KurentoSipException;
@@ -131,34 +132,31 @@ public class CInvite extends CTransaction {
 			log.info("<<<<<<< " + statusCode
 					+ " Session cancel confirmed by remote peer: dialog: "
 					+ this.dialog + ", state: " + dialog.getState());
-			call.LocalCallCancel();
+			call.terminatedCall(Reason.LOCAL_HANGUP);
 		} else if (statusCode == Response.BUSY_HERE
 				|| statusCode == Response.BUSY_EVERYWHERE) {
 			log.info("<<<<<<< " + statusCode + "Remote peer is BUSY: dialog: "
 					+ this.dialog + ", state: " + dialog.getState());
-			call.remoteCallBusy();
-
+			call.terminatedCall(Reason.REMOTE_BUSY);
 		} else if (statusCode == Response.TEMPORARILY_UNAVAILABLE
-
-		|| statusCode == Response.DECLINE) {
+				|| statusCode == Response.DECLINE) {
 			log.info("<<<<<<< " + statusCode
 					+ "Session REJECT by remote peer: dialog: " + this.dialog
 					+ ", state: " + dialog.getState());
-			call.remoteCallReject();
-
+			call.terminatedCall(Reason.REMOTE_HANGUP);
 		} else if (statusCode == Response.UNSUPPORTED_MEDIA_TYPE
 				|| statusCode == Response.NOT_ACCEPTABLE_HERE
 				|| statusCode == Response.NOT_ACCEPTABLE) {
 			log.info("<<<<<<< " + statusCode
 					+ " UNSUPPORTED_MEDIA_TYPE: dialog: " + this.dialog
 					+ ", state: " + dialog.getState());
-			call.unsupportedMediaType();
+			call.terminatedCall(Reason.ERROR);
 		} else if (statusCode == 476 || statusCode == Response.NOT_FOUND) {
 			// USER_NOT_FOUND. SIP/2.0 476
 			// Unresolvable destination
 			log.info("<<<<<<< " + statusCode + " USER_NOT_FOUND: dialog: "
 					+ this.dialog + ", state: " + dialog.getState());
-			call.userNotFound();
+			call.terminatedCall(Reason.USER_NOT_FOUND);
 		} else if (statusCode == Response.OK) {
 			// 200 OK
 			log.info("<<<<<<< 200 OK: dialog: " + this.dialog.getDialogId()
@@ -176,7 +174,7 @@ public class CInvite extends CTransaction {
 				} catch (KurentoSipException e) {
 					String msg = "Unable to send ACK message";
 					log.error(msg, e);
-					call.callError(msg);
+					call.terminatedCall(Reason.ERROR);
 				} finally {
 					call.completedCallWithError("INVITE response received with no SDP");
 				}
@@ -191,7 +189,8 @@ public class CInvite extends CTransaction {
 			log.info("<<<<<<< " + statusCode
 					+ " Response code not supported : dialog: " + this.dialog
 					+ ", state: " + dialog.getState());
-			call.callError("Unsupported status code received:" + statusCode);
+			log.error("Unsupported status code received:" + statusCode);
+			call.terminatedCall(Reason.ERROR);
 			// sendAck(); // ACK is automatically sent by the SIP Stack for
 			// codes >4xx
 		}
@@ -242,7 +241,7 @@ public class CInvite extends CTransaction {
 				} catch (KurentoSipException e) {
 					String msg = "Unable to send ACK message after SDP processing";
 					log.error(msg, e);
-					call.callError(msg);
+					call.terminatedCall(Reason.ERROR);
 				}
 			}
 

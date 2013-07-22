@@ -135,7 +135,7 @@ public class SipCall extends CallBase {
 				callFailed(new KurentoException("Unable to send SIP response",
 						e));
 			}
-			rejectCall();
+			terminatedCall(Reason.LOCAL_HANGUP);
 		} else if (State.CONFIRMED.equals(state)) {
 			// Terminate request after 200 OK response. ACK might still not
 			// being received
@@ -232,10 +232,6 @@ public class SipCall extends CallBase {
 		}
 	}
 
-	private void rejectCall() {
-		terminatedCall(Reason.LOCAL_HANGUP);
-	}
-
 	private void callFailed(KurentoException e) {
 		log.error("callFailed", e);
 		sipUA.getErrorHandler().onCallError(this, e);
@@ -262,36 +258,8 @@ public class SipCall extends CallBase {
 		completedCall();
 	}
 
-	public void callError(String msg) {
-		terminatedCall(Reason.ERROR);
-	}
-
-	public void LocalCallCancel() {
-		terminatedCall(Reason.LOCAL_HANGUP);
-	}
-
-	public void remoteCallBusy() {
-		terminatedCall(Reason.REMOTE_BUSY);
-	}
-
-	public void remoteCallReject() {
-		terminatedCall(Reason.REMOTE_HANGUP);
-	}
-
 	public void remoteRingingCall() {
 		sipUA.getCallDialingHandler().onRemoteRinging(sipDialingCall);
-	}
-
-	public void userNotFound() {
-		terminatedCall(Reason.USER_NOT_FOUND);
-	}
-
-	public void unsupportedMediaType() {
-		terminatedCall(Reason.ERROR);
-	}
-
-	public void unsupportedCode() {
-		terminatedCall(Reason.ERROR);
 	}
 
 	public void callTimeout() {
@@ -399,7 +367,7 @@ public class SipCall extends CallBase {
 			stateTransition(State.TERMINATED);
 			incomingInitiatingRequest.sendResponse(Response.REQUEST_TERMINATED,
 					null);
-			LocalCallCancel();
+			terminatedCall(Reason.LOCAL_HANGUP);
 			// Remove reference to the initiating request
 			// incomingInitiatingRequest = null;
 		} else {
