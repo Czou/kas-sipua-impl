@@ -173,13 +173,13 @@ public class CInvite extends CTransaction {
 				// Send ACK to complete INVITE transaction
 				try {
 					sendAck(null);
-					call.completedCallWithError("INVITE response received with no SDP");
 				} catch (KurentoSipException e) {
 					String msg = "Unable to send ACK message";
 					log.error(msg, e);
 					call.callError(msg);
+				} finally {
+					call.completedCallWithError("INVITE response received with no SDP");
 				}
-				call.completedCallWithError("Received response to INVITE with no SDP");
 			}
 		} else if (statusCode > 200 && statusCode < 400) {
 			// Unsupported codes
