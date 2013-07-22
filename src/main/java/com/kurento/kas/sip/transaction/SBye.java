@@ -19,9 +19,9 @@ package com.kurento.kas.sip.transaction;
 import javax.sip.ServerTransaction;
 import javax.sip.message.Response;
 
+import com.kurento.kas.call.TerminatedCall.Reason;
 import com.kurento.kas.sip.ua.KurentoSipException;
 import com.kurento.kas.sip.ua.SipUA;
-import com.kurento.kas.ua.Call.TerminateReason;
 
 public class SBye extends STransaction {
 
@@ -33,7 +33,7 @@ public class SBye extends STransaction {
 			sendResponse(Response.CALL_OR_TRANSACTION_DOES_NOT_EXIST, null);
 		else {
 			sendResponse(Response.OK, null);
-			call.terminatedCall(TerminateReason.REMOTE_HANGUP);
+			call.terminatedCall(Reason.REMOTE_HANGUP);
 		}
 	}
 

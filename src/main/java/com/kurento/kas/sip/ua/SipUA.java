@@ -73,6 +73,15 @@ import android.os.Handler;
 import android.os.Looper;
 import android.preference.PreferenceManager;
 
+import com.kurento.kas.call.Call;
+import com.kurento.kas.call.CallDialingHandler;
+import com.kurento.kas.call.CallEstablishedHandler;
+import com.kurento.kas.call.CallRingingHandler;
+import com.kurento.kas.call.CallTerminatedHandler;
+import com.kurento.kas.call.DialingCall;
+import com.kurento.kas.call.EstablishedCall;
+import com.kurento.kas.call.RingingCall;
+import com.kurento.kas.call.TerminatedCall;
 import com.kurento.kas.conference.Conference;
 import com.kurento.kas.conference.ConferenceHandler;
 import com.kurento.kas.sip.transaction.CInvite;
@@ -87,11 +96,6 @@ import com.kurento.kas.sip.transaction.STransaction;
 import com.kurento.kas.sip.util.AlarmUaTimer;
 import com.kurento.kas.sip.util.KurentoUaTimerTask;
 import com.kurento.kas.sip.util.NetworkUtilities;
-import com.kurento.kas.ua.Call;
-import com.kurento.kas.ua.CallDialingHandler;
-import com.kurento.kas.ua.CallEstablishedHandler;
-import com.kurento.kas.ua.CallRingingHandler;
-import com.kurento.kas.ua.CallTerminatedHandler;
 import com.kurento.kas.ua.ErrorHandler;
 import com.kurento.kas.ua.KurentoException;
 import com.kurento.kas.ua.Register;
@@ -146,7 +150,7 @@ public class SipUA extends UA {
 
 	private final Map<String, SipRegister> localUris = new ConcurrentHashMap<String, SipRegister>();
 	final Set<CRegister> pendingCRegisters = new CopyOnWriteArraySet<CRegister>();
-	final Set<Call> activedCalls = new CopyOnWriteArraySet<Call>();
+	final Set<SipCall> activedCalls = new CopyOnWriteArraySet<SipCall>();
 
 	private final Preferences preferences;
 	private final Context context;
@@ -210,8 +214,8 @@ public class SipUA extends UA {
 		context.unregisterReceiver(networkStateReceiver);
 
 		if (sipStack != null && sipProvider != null) {
-			for (Call call : activedCalls) {
-				call.hangup();
+			for (SipCall call : activedCalls) {
+				call.terminate();
 				activedCalls.remove(call);
 			}
 
@@ -330,18 +334,18 @@ public class SipUA extends UA {
 	// ////////////////
 
 	@Override
-	public void setRegisterHandler(RegisterHandler registerHandler) {
-		this.registerHandler = registerHandler;
+	public void setUAHandler(UAHandler uaHandler) {
+		this.uaHandler = uaHandler;
 	}
 
 	@Override
-	public void setExceptionHandler(ErrorHandler errorHandler) {
+	public void setErrorHandler(ErrorHandler errorHandler) {
 		this.errorHandler = errorHandler;
 	}
 
 	@Override
-	public void setUAHandler(UAHandler uaHandler) {
-		this.uaHandler = uaHandler;
+	public void setRegisterHandler(RegisterHandler registerHandler) {
+		this.registerHandler = registerHandler;
 	}
 
 	@Override
@@ -829,7 +833,8 @@ public class SipUA extends UA {
 	}
 
 	@Override
-	public Call dial(String fromUri, String remoteUri) throws KurentoException {
+	public DialingCall dial(String fromUri, String remoteUri)
+			throws KurentoException {
 		if (fromUri == null || fromUri.isEmpty())
 			throw new KurentoException("From URI not set");
 
@@ -845,11 +850,11 @@ public class SipUA extends UA {
 			}
 		});
 
-		return call;
+		return call.sipDialingCall;
 	}
 
 	@Override
-	public Call dial(String remoteUri) throws KurentoException {
+	public DialingCall dial(String remoteUri) throws KurentoException {
 		if (localUris.size() == 0)
 			throw new KurentoException(
 					"Cannot dial. There is not any local URI.");
@@ -1097,33 +1102,37 @@ public class SipUA extends UA {
 		callDialingHandler = new CallDialingHandler() {
 
 			@Override
-			public void onRemoteRinging(Call dialingCall) {
+			public void onRemoteRinging(DialingCall dialingCall) {
 				log.info("Default onRemoteRinging");
 			}
+
 		};
 
 		callEstablishedHandler = new CallEstablishedHandler() {
 
 			@Override
-			public void onEstablished(Call call) {
+			public void onEstablished(EstablishedCall call) {
 				log.info("Default onEstablished");
 			}
+
 		};
 
 		callRingingHandler = new CallRingingHandler() {
 
 			@Override
-			public void onRinging(Call ringinCall) {
+			public void onRinging(RingingCall ringinCall) {
 				log.info("Default onRinging");
 			}
+
 		};
 
 		callTerminatedHandler = new CallTerminatedHandler() {
 
 			@Override
-			public void onTerminate(Call terminatedCall) {
+			public void onTerminated(TerminatedCall terminatedCall) {
 				log.info("Default onTerminate");
 			}
+
 		};
 	}
 

@@ -23,10 +23,10 @@ import javax.sip.message.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.kurento.kas.call.impl.CallBase.CreateSdpAnswerObserver;
 import com.kurento.kas.sip.ua.KurentoSipException;
 import com.kurento.kas.sip.ua.SipUA;
 import com.kurento.kas.ua.KurentoException;
-import com.kurento.kas.ua.impl.BaseCall.CreateSdpAnswerObserver;
 
 public class SInvite extends STransaction {
 

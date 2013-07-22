@@ -33,12 +33,12 @@ import javax.sip.message.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.kurento.kas.call.impl.CallBase.CreateSdpOfferObserver;
+import com.kurento.kas.call.impl.CallBase.SetRemoteSdpObserver;
 import com.kurento.kas.sip.ua.KurentoSipException;
 import com.kurento.kas.sip.ua.SipCall;
 import com.kurento.kas.sip.ua.SipUA;
 import com.kurento.kas.ua.KurentoException;
-import com.kurento.kas.ua.impl.BaseCall.CreateSdpOfferObserver;
-import com.kurento.kas.ua.impl.BaseCall.SetRemoteSdpObserver;
 
 public class CInvite extends CTransaction {
 

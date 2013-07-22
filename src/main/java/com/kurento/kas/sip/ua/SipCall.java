@@ -25,23 +25,37 @@ import javax.sip.message.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.kurento.kas.call.DialingCall;
+import com.kurento.kas.call.RingingCall;
+import com.kurento.kas.call.RingingCall.RejectCode;
+import com.kurento.kas.call.TerminatedCall;
+import com.kurento.kas.call.TerminatedCall.Reason;
+import com.kurento.kas.call.impl.CallBase;
 import com.kurento.kas.sip.transaction.CBye;
 import com.kurento.kas.sip.transaction.CCancel;
 import com.kurento.kas.sip.transaction.CTransaction;
 import com.kurento.kas.sip.transaction.STransaction;
 import com.kurento.kas.ua.KurentoException;
-import com.kurento.kas.ua.impl.BaseCall;
 
-public class SipCall extends BaseCall {
+public class SipCall extends CallBase {
 
 	protected static final Logger log = LoggerFactory.getLogger(SipCall.class
 			.getSimpleName());
+
+	private enum State {
+		IDLE, INCOMING_RINGING, OUTGOING_RINGING, CONFIRMED, TERMINATED
+	}
+
+	private SipRingingCall sipRingingCall = new SipRingingCall();
+	SipDialingCall sipDialingCall = new SipDialingCall();
+	private SipEstablishedCall sipEstablishedCall = new SipEstablishedCall();
+	private SipTerminatedCall sipTerminatedCall = new SipTerminatedCall();
 
 	// CALL INFO
 	private String localUri;
 	private String remoteUri;
 	private State state = State.IDLE;
-	private TerminateReason reason = TerminateReason.NONE;
+	private Reason reason = Reason.NONE;
 
 	// CALL DATA
 	private final SipUA sipUA;
@@ -81,35 +95,12 @@ public class SipCall extends BaseCall {
 	//
 	// ////////////////////
 
-	@Override
-	public void accept() throws KurentoException {
-		// Accept only if there are incoming transactions and INCOMING RINIGING
-		if (incomingInitiatingRequest == null
-				|| !State.INCOMING_RINGING.equals(state))
-			throw new KurentoException("There is not any incoming call");
-
-		log.debug("Accept call " + getCallInfo());
-		stateTransition(State.CONFIRMED);
-		try {
-			String localDescription = getLocalDescription();
-			if (localDescription == null)
-				callFailed(new KurentoException("Local description not set"));
-			else
-				incomingInitiatingRequest.sendResponse(Response.OK,
-						localDescription.getBytes());
-			incomingInitiatingRequest = null;
-		} catch (KurentoSipException e) {
-			callFailed(new KurentoException("Unable to send SIP response", e));
-		}
+	void terminate() {
+		terminate(RejectCode.DECLINE);
 	}
 
-	@Override
-	public void hangup() {
-		hangup(RejectCode.DECLINE);
-	}
-
-	@Override
-	public void hangup(RejectCode code) {
+	// FIXME: refactor for new Call API
+	void terminate(RejectCode code) {
 		request2Terminate = true;
 		sipUA.activedCalls.remove(this);
 
@@ -155,7 +146,7 @@ public class SipCall extends BaseCall {
 			stateTransition(State.TERMINATED);
 			try {
 				new CBye(sipUA, this);
-				terminatedCall(TerminateReason.NONE);
+				terminatedCall(Reason.NONE);
 			} catch (KurentoSipException e) {
 				callFailed(new KurentoException("Unable to send BYE request", e));
 			}
@@ -187,16 +178,6 @@ public class SipCall extends BaseCall {
 	@Override
 	public String getRemoteUri() {
 		return remoteUri;
-	}
-
-	@Override
-	public State getState() {
-		return state;
-	}
-
-	@Override
-	public TerminateReason getReason() {
-		return reason;
 	}
 
 	// ////////////////////
@@ -242,7 +223,7 @@ public class SipCall extends BaseCall {
 			log.info("Too late to cancel call: " + getCallInfo());
 			try {
 				new CBye(sipUA, this);
-				terminatedCall(TerminateReason.LOCAL_HANGUP);
+				terminatedCall(Reason.LOCAL_HANGUP);
 			} catch (KurentoSipException e1) {
 				callFailed(new KurentoException(
 						"Unable to terminate call locally canceled:"
@@ -252,13 +233,13 @@ public class SipCall extends BaseCall {
 	}
 
 	private void rejectCall() {
-		terminatedCall(TerminateReason.LOCAL_HANGUP);
+		terminatedCall(Reason.LOCAL_HANGUP);
 	}
 
 	private void callFailed(KurentoException e) {
 		log.error("callFailed", e);
 		sipUA.getErrorHandler().onCallError(this, e);
-		terminatedCall(TerminateReason.ERROR);
+		terminatedCall(Reason.ERROR);
 	}
 
 	// ////////////////////
@@ -267,13 +248,13 @@ public class SipCall extends BaseCall {
 	//
 	// ////////////////////
 
-	public void terminatedCall(TerminateReason reason) {
+	public void terminatedCall(Reason reason) {
 		this.request2Terminate = true;
 		this.reason = reason;
 		stateTransition(State.TERMINATED);
 		release();
 		sipUA.activedCalls.remove(this);
-		sipUA.getCallTerminatedHandler().onTerminate(this);
+		sipUA.getCallTerminatedHandler().onTerminated(sipTerminatedCall);
 	}
 
 	public void completedCallWithError(String msg) {
@@ -282,35 +263,35 @@ public class SipCall extends BaseCall {
 	}
 
 	public void callError(String msg) {
-		terminatedCall(TerminateReason.ERROR);
+		terminatedCall(Reason.ERROR);
 	}
 
 	public void LocalCallCancel() {
-		terminatedCall(TerminateReason.LOCAL_HANGUP);
+		terminatedCall(Reason.LOCAL_HANGUP);
 	}
 
 	public void remoteCallBusy() {
-		terminatedCall(TerminateReason.BUSY);
+		terminatedCall(Reason.REMOTE_BUSY);
 	}
 
 	public void remoteCallReject() {
-		terminatedCall(TerminateReason.REMOTE_HANGUP);
+		terminatedCall(Reason.REMOTE_HANGUP);
 	}
 
 	public void remoteRingingCall() {
-		sipUA.getCallDialingHandler().onRemoteRinging(this);
+		sipUA.getCallDialingHandler().onRemoteRinging(sipDialingCall);
 	}
 
 	public void userNotFound() {
-		terminatedCall(TerminateReason.USER_NOT_FOUND);
+		terminatedCall(Reason.USER_NOT_FOUND);
 	}
 
 	public void unsupportedMediaType() {
-		terminatedCall(TerminateReason.ERROR);
+		terminatedCall(Reason.ERROR);
 	}
 
 	public void unsupportedCode() {
-		terminatedCall(TerminateReason.ERROR);
+		terminatedCall(Reason.ERROR);
 	}
 
 	public void callTimeout() {
@@ -368,7 +349,7 @@ public class SipCall extends BaseCall {
 			sipUA.activedCalls.add(this);
 			// Notify the incoming call to EndPoint controllers and waits for
 			// response (accept or reject)
-			sipUA.getCallRingingHandler().onRinging(this);
+			sipUA.getCallRingingHandler().onRinging(sipRingingCall);
 		}
 	}
 
@@ -388,7 +369,7 @@ public class SipCall extends BaseCall {
 				try {
 					log.debug("Inmediatelly terminate an already stablished call");
 					new CBye(sipUA, this);
-					terminatedCall(TerminateReason.LOCAL_HANGUP);
+					terminatedCall(Reason.LOCAL_HANGUP);
 				} catch (KurentoSipException e) {
 					callFailed(new KurentoException(
 							"Unable to terminate CALL for dialog: "
@@ -400,7 +381,7 @@ public class SipCall extends BaseCall {
 
 		// TODO Make sure the media stack is already created
 		stateTransition(State.CONFIRMED);
-		sipUA.getCallEstablishedHandler().onEstablished(this);
+		sipUA.getCallEstablishedHandler().onEstablished(sipEstablishedCall);
 
 		// Remove reference to the initiating transactions (might be in or out)
 		incomingInitiatingRequest = null;
@@ -442,4 +423,149 @@ public class SipCall extends BaseCall {
 		if (request2Terminate) // Call has been canceled while building SDP
 			localCallCancel();
 	}
+
+	// ////////////////
+	//
+	// SipRingingCall
+	//
+	// ////////////////
+
+	private class SipRingingCall extends RingingCall {
+
+		@Override
+		public String getId() {
+			return SipCall.this.getId();
+		}
+
+		@Override
+		public String getLocalUri() {
+			return SipCall.this.getLocalUri();
+		}
+
+		@Override
+		public String getRemoteUri() {
+			return SipCall.this.getRemoteUri();
+		}
+
+		@Override
+		public void accept() throws KurentoException {
+			// Accept only if there are incoming transactions and INCOMING
+			// RINIGING
+			if (incomingInitiatingRequest == null
+					|| !State.INCOMING_RINGING.equals(state))
+				throw new KurentoException("There is not any incoming call");
+
+			log.debug("Accept call " + getCallInfo());
+			stateTransition(State.CONFIRMED);
+			try {
+				String localDescription = getLocalDescription();
+				if (localDescription == null)
+					callFailed(new KurentoException("Local description not set"));
+				else
+					incomingInitiatingRequest.sendResponse(Response.OK,
+							localDescription.getBytes());
+				incomingInitiatingRequest = null;
+			} catch (KurentoSipException e) {
+				callFailed(new KurentoException("Unable to send SIP response",
+						e));
+			}
+		}
+
+		@Override
+		public void reject(RejectCode code) {
+			SipCall.this.terminate(code);
+		}
+
+	}
+
+	// ////////////////
+	//
+	// SipDialingCall
+	//
+	// ////////////////
+
+	private class SipDialingCall extends DialingCall {
+
+		@Override
+		public String getId() {
+			return SipCall.this.getId();
+		}
+
+		@Override
+		public String getLocalUri() {
+			return SipCall.this.getLocalUri();
+		}
+
+		@Override
+		public String getRemoteUri() {
+			return SipCall.this.getRemoteUri();
+		}
+
+		@Override
+		public void cancel() {
+			SipCall.this.terminate();
+		}
+
+	}
+
+	// ////////////////
+	//
+	// SipEstablishedCall
+	//
+	// ////////////////
+
+	private class SipEstablishedCall extends EstablishedCallBase {
+
+		@Override
+		public String getId() {
+			return SipCall.this.getId();
+		}
+
+		@Override
+		public String getLocalUri() {
+			return SipCall.this.getLocalUri();
+		}
+
+		@Override
+		public String getRemoteUri() {
+			return SipCall.this.getRemoteUri();
+		}
+
+		@Override
+		public void hangup() {
+			SipCall.this.terminate();
+		}
+
+	}
+
+	// ////////////////
+	//
+	// SipTerminatedCall
+	//
+	// ////////////////
+
+	private class SipTerminatedCall extends TerminatedCall {
+
+		@Override
+		public String getId() {
+			return SipCall.this.getId();
+		}
+
+		@Override
+		public String getLocalUri() {
+			return SipCall.this.getLocalUri();
+		}
+
+		@Override
+		public String getRemoteUri() {
+			return SipCall.this.getRemoteUri();
+		}
+
+		@Override
+		public Reason getReason() {
+			return reason;
+		}
+
+	}
+
 }
