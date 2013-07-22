@@ -30,7 +30,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.concurrent.Semaphore;
 
 import javax.sip.ClientTransaction;
 import javax.sip.Dialog;
@@ -69,8 +68,6 @@ import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.os.Handler;
-import android.os.Looper;
 import android.preference.PreferenceManager;
 
 import com.kurento.kas.call.Call;
@@ -95,6 +92,7 @@ import com.kurento.kas.sip.transaction.SInvite;
 import com.kurento.kas.sip.transaction.STransaction;
 import com.kurento.kas.sip.util.AlarmUaTimer;
 import com.kurento.kas.sip.util.KurentoUaTimerTask;
+import com.kurento.kas.sip.util.LooperThread;
 import com.kurento.kas.sip.util.NetworkUtilities;
 import com.kurento.kas.ua.ErrorHandler;
 import com.kurento.kas.ua.KurentoException;
@@ -1242,35 +1240,5 @@ public class SipUA extends UA {
 			}
 		}
 	};
-
-	private class LooperThread extends Thread {
-		public Handler mHandler;
-		private final Semaphore sem = new Semaphore(0);
-
-		@Override
-		public void run() {
-			Looper.prepare();
-			mHandler = new Handler();
-			sem.release();
-			Looper.loop();
-		}
-
-		public boolean post(Runnable r) {
-			try {
-				sem.acquire();
-				boolean ret = mHandler.post(r);
-				sem.release();
-
-				return ret;
-			} catch (InterruptedException e) {
-				log.error("Cannot run", e);
-				return false;
-			}
-		}
-
-		public void quit() {
-			mHandler.getLooper().quit();
-		}
-	}
 
 }
