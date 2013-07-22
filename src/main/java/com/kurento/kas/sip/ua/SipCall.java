@@ -55,7 +55,6 @@ public class SipCall extends CallBase {
 	private String localUri;
 	private String remoteUri;
 	private State state = State.IDLE;
-	private Reason reason = Reason.NONE;
 
 	// CALL DATA
 	private final SipUA sipUA;
@@ -240,7 +239,7 @@ public class SipCall extends CallBase {
 
 	public void terminatedCall(Reason reason) {
 		this.request2Terminate = true;
-		this.reason = reason;
+		sipTerminatedCall.reason = reason;
 		stateTransition(State.TERMINATED);
 		release();
 		sipUA.activedCalls.remove(this);
@@ -507,6 +506,8 @@ public class SipCall extends CallBase {
 	// ////////////////
 
 	private class SipTerminatedCall extends TerminatedCall {
+
+		private Reason reason = Reason.NONE;
 
 		@Override
 		public String getId() {
