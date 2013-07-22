@@ -71,7 +71,7 @@ public class SipCall extends CallBase {
 	// ////////////////////
 
 	// Used to create outgoing calls
-	protected SipCall(SipUA sipUA, String fromUri, String toUri) {
+	SipCall(SipUA sipUA, String fromUri, String toUri) {
 		super(sipUA.getContext());
 		this.sipUA = sipUA;
 		this.localUri = fromUri;
@@ -79,7 +79,7 @@ public class SipCall extends CallBase {
 	}
 
 	// Intended for incoming calls
-	protected SipCall(SipUA sipUA, Dialog dialog) throws KurentoSipException {
+	SipCall(SipUA sipUA, Dialog dialog) throws KurentoSipException {
 		this(sipUA, dialog.getLocalParty().getURI().toString(), dialog
 				.getRemoteParty().getURI().toString());
 		this.dialog = dialog;
