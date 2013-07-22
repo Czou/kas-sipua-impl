@@ -1,7 +1,5 @@
 package com.kurento.kas.sip.util;
 
-import java.util.concurrent.Semaphore;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,30 +12,44 @@ public class LooperThread extends Thread {
 			.getLogger(LooperThread.class.getSimpleName());
 
 	private Handler mHandler;
-	private final Semaphore sem = new Semaphore(0);
+	private Object initControl = new Object();
+	private boolean initiated = false;
+	private boolean quit = false;
 
 	@Override
 	public void run() {
 		Looper.prepare();
-		mHandler = new Handler();
-		sem.release();
+		synchronized (this) {
+			mHandler = new Handler();
+			if (quit) {
+				quit();
+			}
+		}
+		synchronized (initControl) {
+			initiated = true;
+			initControl.notifyAll();
+		}
 		Looper.loop();
 	}
 
 	public boolean post(Runnable r) {
 		try {
-			sem.acquire();
-			boolean ret = mHandler.post(r);
-			sem.release();
-
-			return ret;
+			synchronized (initControl) {
+				if (!initiated) {
+					initControl.wait();
+				}
+			}
+			return mHandler.post(r);
 		} catch (InterruptedException e) {
 			log.error("Cannot run", e);
 			return false;
 		}
 	}
 
-	public void quit() {
-		mHandler.getLooper().quit();
+	public synchronized void quit() {
+		quit = true;
+		if (mHandler != null) {
+			mHandler.getLooper().quit();
+		}
 	}
 }
