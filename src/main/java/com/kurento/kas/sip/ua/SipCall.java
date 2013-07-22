@@ -16,6 +16,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>
  */
 package com.kurento.kas.sip.ua;
 
+import java.util.UUID;
+
 import javax.sip.Dialog;
 import javax.sip.SipException;
 import javax.sip.address.Address;
@@ -52,6 +54,7 @@ public class SipCall extends CallBase {
 	private SipTerminatedCall sipTerminatedCall = new SipTerminatedCall();
 
 	// CALL INFO
+	private String callId;
 	private String localUri;
 	private String remoteUri;
 	private State state = State.IDLE;
@@ -73,6 +76,7 @@ public class SipCall extends CallBase {
 	SipCall(SipUA sipUA, String fromUri, String toUri) {
 		super(sipUA.getContext());
 		this.sipUA = sipUA;
+		this.callId = UUID.randomUUID().toString();
 		this.localUri = fromUri;
 		this.remoteUri = toUri;
 	}
@@ -86,7 +90,7 @@ public class SipCall extends CallBase {
 
 	@Override
 	public String getId() {
-		return null;
+		return callId;
 	}
 
 	@Override
