@@ -85,6 +85,26 @@ public class SipCall extends CallBase {
 		this.dialog = dialog;
 	}
 
+	@Override
+	public String getId() {
+		return null;
+	}
+
+	@Override
+	public String getLocalUri() {
+		return localUri;
+	}
+
+	@Override
+	public String getRemoteUri() {
+		return remoteUri;
+	}
+
+	@Override
+	protected void release() {
+		super.release();
+	}
+
 	public Dialog getDialog() {
 		return this.dialog;
 	}
@@ -161,27 +181,6 @@ public class SipCall extends CallBase {
 
 	// ////////////////////
 	//
-	// GETTERS & SETTERS
-	//
-	// ////////////////////
-
-	@Override
-	public String getId() {
-		return null;
-	}
-
-	@Override
-	public String getLocalUri() {
-		return localUri;
-	}
-
-	@Override
-	public String getRemoteUri() {
-		return remoteUri;
-	}
-
-	// ////////////////////
-	//
 	// CALL HELPERS
 	//
 	// ////////////////////
@@ -199,11 +198,6 @@ public class SipCall extends CallBase {
 		else
 			arrow = " >>> ";
 		return localUri + arrow + remoteUri;
-	}
-
-	@Override
-	protected void release() {
-		super.release();
 	}
 
 	private void localCallCancel() {
