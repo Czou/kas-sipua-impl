@@ -53,7 +53,7 @@ public abstract class CTransaction extends Transaction {
 
 	private static final int MAX_FORWARDS = 70;
 
-	ClientTransaction clientTransaction;
+	private ClientTransaction clientTransaction;
 	Request request;
 
 	// General attributes

@@ -39,7 +39,7 @@ public abstract class STransaction extends Transaction {
 	private static final Logger log = LoggerFactory
 			.getLogger(STransaction.class.getSimpleName());
 
-	ServerTransaction serverTransaction;
+	private ServerTransaction serverTransaction;
 	Request request;
 
 	String method;
