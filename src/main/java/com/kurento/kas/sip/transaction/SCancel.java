@@ -31,11 +31,11 @@ public class SCancel extends STransaction {
 		// RFC 3261 - 9.2
 		if (call == null)
 			// No matching transaction ==> null SipContext & 481 response code
-			sendResponse(Response.CALL_OR_TRANSACTION_DOES_NOT_EXIST, null);
+			sendResponse(Response.CALL_OR_TRANSACTION_DOES_NOT_EXIST);
 		else {
 			// Matching transaction found ==> send 200 code regardless of dialog
 			// status
-			sendResponse(Response.OK, null);
+			sendResponse(Response.OK);
 			call.remoteCallCancel();
 		}
 	}

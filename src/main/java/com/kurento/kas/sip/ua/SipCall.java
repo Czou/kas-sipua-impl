@@ -156,7 +156,7 @@ public class SipCall extends CallBase {
 				responseCode = Response.BUSY_HERE;
 
 			try {
-				incomingInitiatingRequest.sendResponse(responseCode, null);
+				incomingInitiatingRequest.sendResponse(responseCode);
 			} catch (KurentoSipException e) {
 				callFailedSync(new KurentoException(
 						"Unable to send SIP response", e));
@@ -316,8 +316,7 @@ public class SipCall extends CallBase {
 			try {
 				// Change before transition to avoid concurrent conflict with
 				// local reject
-				incomingTransaction.sendResponse(Response.REQUEST_TERMINATED,
-						null);
+				incomingTransaction.sendResponse(Response.REQUEST_TERMINATED);
 				// Do not raise events
 			} catch (KurentoSipException e) {
 				log.warn("Unable to terminate call canceled by remote party", e);
@@ -415,8 +414,8 @@ public class SipCall extends CallBase {
 			// (accept)
 			stateTransitionSync(State.TERMINATED);
 			try {
-				incomingInitiatingRequest.sendResponse(
-						Response.REQUEST_TERMINATED, null);
+				incomingInitiatingRequest
+						.sendResponse(Response.REQUEST_TERMINATED);
 			} catch (KurentoSipException e) {
 				log.error("Cannot send request terminated when cancel", e);
 			}

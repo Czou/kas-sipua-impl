@@ -60,7 +60,7 @@ public abstract class STransaction extends Transaction {
 
 		// Only SIP Version = 2.0 supported
 		if (!isSipVersion2()) {
-			sendResponse(Response.VERSION_NOT_SUPPORTED, null);
+			sendResponse(Response.VERSION_NOT_SUPPORTED);
 			throw new KurentoSipException("Sip version not supported: "
 					+ serverTransaction.getRequest().getSIPVersion());
 		}
@@ -68,6 +68,10 @@ public abstract class STransaction extends Transaction {
 
 	public ServerTransaction getServerTransaction() {
 		return serverTransaction;
+	}
+
+	public void sendResponse(int code) throws KurentoSipException {
+		sendResponse(code, null);
 	}
 
 	/**
@@ -125,7 +129,7 @@ public abstract class STransaction extends Transaction {
 				throw new KurentoSipException(
 						"Unable to send response code 500. GIVE UP!!!", e);
 			} else {
-				sendResponse(Response.SERVER_INTERNAL_ERROR, null);
+				sendResponse(Response.SERVER_INTERNAL_ERROR);
 			}
 		}
 	}
@@ -143,7 +147,7 @@ public abstract class STransaction extends Transaction {
 		ContentLength clHeader = (ContentLength) request
 				.getHeader(ContentLength.NAME);
 		if (clHeader == null) {
-			sendResponse(Response.BAD_REQUEST, null);
+			sendResponse(Response.BAD_REQUEST);
 			throw new KurentoSipException(
 					"Unable to find Content-length in Server Request");
 		} else {

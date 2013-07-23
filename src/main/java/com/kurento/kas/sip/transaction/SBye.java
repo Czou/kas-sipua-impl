@@ -30,9 +30,9 @@ public class SBye extends STransaction {
 		super(sipUA, serverTransaction);
 
 		if (call == null)
-			sendResponse(Response.CALL_OR_TRANSACTION_DOES_NOT_EXIST, null);
+			sendResponse(Response.CALL_OR_TRANSACTION_DOES_NOT_EXIST);
 		else {
-			sendResponse(Response.OK, null);
+			sendResponse(Response.OK);
 			call.terminatedCall(Reason.REMOTE_HANGUP);
 		}
 	}

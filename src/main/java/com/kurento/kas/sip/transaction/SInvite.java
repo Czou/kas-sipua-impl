@@ -48,12 +48,12 @@ public class SInvite extends STransaction {
 		} else {
 			log.error("Bad request. Method not allowed in a Server INVITE: "
 					+ request.getMethod());
-			sendResponse(Response.BAD_REQUEST, null);
+			sendResponse(Response.BAD_REQUEST);
 		}
 	}
 
 	private void processInvite(Request request) throws KurentoSipException {
-		sendResponse(Response.RINGING, null);
+		sendResponse(Response.RINGING);
 
 		// Process INVITE request
 		if (getContentLength(request) == 0) {
@@ -77,8 +77,8 @@ public class SInvite extends STransaction {
 				public void onError(KurentoException exception) {
 					call.removeCreateSdpAnswerObserver(this);
 					try {
-						SInvite.this.sendResponse(
-								Response.UNSUPPORTED_MEDIA_TYPE, null);
+						SInvite.this
+								.sendResponse(Response.UNSUPPORTED_MEDIA_TYPE);
 					} catch (KurentoSipException e) {
 						log.error("Unable to send response", e);
 					}
