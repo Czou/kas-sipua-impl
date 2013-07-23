@@ -125,7 +125,6 @@ public class SipCall extends CallBase {
 	//
 	// ////////////////////
 
-	// FIXME: refactor for new Call API
 	private void terminateSync(RejectCode code) {
 		request2Terminate = true;
 		sipUA.activedCalls.remove(this);
