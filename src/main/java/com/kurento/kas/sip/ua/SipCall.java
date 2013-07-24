@@ -37,8 +37,10 @@ import com.kurento.kas.sip.transaction.CBye;
 import com.kurento.kas.sip.transaction.CCancel;
 import com.kurento.kas.sip.transaction.CTransaction;
 import com.kurento.kas.sip.transaction.STransaction;
+import com.kurento.kas.sip.util.LooperThread;
 import com.kurento.kas.ua.KurentoException;
 
+//TODO: callbacks from a pool of threads
 public class SipCall extends CallBase {
 
 	protected static final Logger log = LoggerFactory.getLogger(SipCall.class
@@ -66,6 +68,8 @@ public class SipCall extends CallBase {
 	private CTransaction outgoingInitiatingRequest;
 	private Boolean request2Terminate = false;
 
+	private final LooperThread looperThread = new LooperThread();
+
 	// ////////////////////
 	//
 	// CONSTRUCTOR
@@ -79,6 +83,8 @@ public class SipCall extends CallBase {
 		this.callId = UUID.randomUUID().toString();
 		this.localUri = fromUri;
 		this.remoteUri = toUri;
+
+		looperThread.start();
 	}
 
 	// Intended for incoming calls
@@ -105,6 +111,7 @@ public class SipCall extends CallBase {
 
 	@Override
 	protected void release() {
+		looperThread.quit();
 		super.release();
 	}
 
@@ -114,16 +121,12 @@ public class SipCall extends CallBase {
 
 	// ////////////////////
 	//
-	// CALL API
+	// CALL HELPERS
 	//
 	// ////////////////////
 
-	void terminate() {
-		terminate(RejectCode.DECLINE);
-	}
-
 	// FIXME: refactor for new Call API
-	void terminate(RejectCode code) {
+	private void terminateSync(RejectCode code) {
 		request2Terminate = true;
 		sipUA.activedCalls.remove(this);
 
@@ -137,7 +140,7 @@ public class SipCall extends CallBase {
 			// before response is received
 			log.debug("Request to terminate pending outgoing call: "
 					+ getCallInfo());
-			localCallCancel();
+			localCallCancelSync();
 		} else if (State.INCOMING_RINGING.equals(state)) {
 			// TU requested CALL reject
 			log.debug("Request to reject incoming call " + getCallInfo()
@@ -147,7 +150,7 @@ public class SipCall extends CallBase {
 			// events
 			// Change state before response to avoid concurrent events with
 			// remote CANCEL events
-			stateTransition(State.TERMINATED);
+			stateTransitionSync(State.TERMINATED);
 			int responseCode = Response.DECLINE;
 			if (RejectCode.BUSY.equals(code))
 				responseCode = Response.BUSY_HERE;
@@ -155,10 +158,10 @@ public class SipCall extends CallBase {
 			try {
 				incomingInitiatingRequest.sendResponse(responseCode, null);
 			} catch (KurentoSipException e) {
-				callFailed(new KurentoException("Unable to send SIP response",
-						e));
+				callFailedSync(new KurentoException(
+						"Unable to send SIP response", e));
 			}
-			terminatedCall(Reason.LOCAL_HANGUP);
+			terminatedCallSync(Reason.LOCAL_HANGUP);
 		} else if (State.CONFIRMED.equals(state)) {
 			// Terminate request after 200 OK response. ACK might still not
 			// being received
@@ -166,12 +169,13 @@ public class SipCall extends CallBase {
 					+ getCallInfo());
 			// Change state before request to avoid concurrent BYE requests
 			// from local party
-			stateTransition(State.TERMINATED);
+			stateTransitionSync(State.TERMINATED);
 			try {
 				new CBye(sipUA, this);
-				terminatedCall(Reason.NONE);
+				terminatedCallSync(Reason.NONE);
 			} catch (KurentoSipException e) {
-				callFailed(new KurentoException("Unable to send BYE request", e));
+				callFailedSync(new KurentoException(
+						"Unable to send BYE request", e));
 			}
 		} else if (State.TERMINATED.equals(state)) {
 			log.info("Call already terminated when hangup request,"
@@ -182,13 +186,24 @@ public class SipCall extends CallBase {
 		}
 	}
 
-	// ////////////////////
-	//
-	// CALL HELPERS
-	//
-	// ////////////////////
+	void terminate(final RejectCode code) {
+		looperThread.post(new Runnable() {
+			@Override
+			public void run() {
+				terminateSync(code);
+			}
+		});
+	}
 
-	private synchronized void stateTransition(State newState) {
+	void terminate() {
+		terminate(RejectCode.DECLINE);
+	}
+
+	private synchronized State getStateTransitionSync() {
+		return state;
+	}
+
+	private synchronized void stateTransitionSync(State newState) {
 		log.debug("--------- SIP CONTEXT STATE TRANSITION ");
 		log.debug("| " + getCallInfo() + ": " + state + " ---> " + newState);
 		state = newState;
@@ -203,13 +218,14 @@ public class SipCall extends CallBase {
 		return localUri + arrow + remoteUri;
 	}
 
-	private void localCallCancel() {
+	private void localCallCancelSync() {
 		Request cancelReq;
 		try {
 			cancelReq = outgoingInitiatingRequest.getClientTransaction()
 					.createCancel();
 		} catch (SipException e) {
-			callFailed(new KurentoException("Unable to cancel call locally", e));
+			callFailedSync(new KurentoException(
+					"Unable to cancel call locally", e));
 			return;
 		}
 
@@ -220,19 +236,28 @@ public class SipCall extends CallBase {
 			log.info("Too late to cancel call: " + getCallInfo());
 			try {
 				new CBye(sipUA, this);
-				terminatedCall(Reason.LOCAL_HANGUP);
+				terminatedCallSync(Reason.LOCAL_HANGUP);
 			} catch (KurentoSipException e1) {
-				callFailed(new KurentoException(
+				callFailedSync(new KurentoException(
 						"Unable to terminate call locally canceled:"
 								+ getCallInfo(), e1));
 			}
 		}
 	}
 
-	private void callFailed(KurentoException e) {
+	private void callFailedSync(KurentoException e) {
 		log.error("callFailed", e);
 		sipUA.getErrorHandler().onCallError(this, e);
-		terminatedCall(Reason.ERROR);
+		terminatedCallSync(Reason.ERROR);
+	}
+
+	private void callFailed(final KurentoException e) {
+		looperThread.post(new Runnable() {
+			@Override
+			public void run() {
+				callFailedSync(e);
+			}
+		});
 	}
 
 	// ////////////////////
@@ -241,13 +266,22 @@ public class SipCall extends CallBase {
 	//
 	// ////////////////////
 
-	public void terminatedCall(Reason reason) {
+	private void terminatedCallSync(Reason reason) {
 		this.request2Terminate = true;
 		sipTerminatedCall.reason = reason;
-		stateTransition(State.TERMINATED);
+		stateTransitionSync(State.TERMINATED);
 		release();
 		sipUA.activedCalls.remove(this);
 		sipUA.getCallTerminatedHandler().onTerminated(sipTerminatedCall);
+	}
+
+	public void terminatedCall(final Reason reason) {
+		looperThread.post(new Runnable() {
+			@Override
+			public void run() {
+				terminatedCallSync(reason);
+			}
+		});
 	}
 
 	public void completedCallWithError(String msg) {
@@ -265,7 +299,7 @@ public class SipCall extends CallBase {
 
 	// Use by SInvite to notify an incoming INVITE request. SDP offer is already
 	// process and the SDP answer is ready to be sent
-	public void incomingCall(STransaction incomingTransaction) {
+	private void incomingCallSync(STransaction incomingTransaction) {
 		if (incomingTransaction == null)
 			return;
 
@@ -278,7 +312,7 @@ public class SipCall extends CallBase {
 			// being processed
 			// Force call cancel and do not signal incoming to the controller
 			log.info("Incoming call terminated");
-			stateTransition(State.TERMINATED);
+			stateTransitionSync(State.TERMINATED);
 			try {
 				// Change before transition to avoid concurrent conflict with
 				// local reject
@@ -294,7 +328,7 @@ public class SipCall extends CallBase {
 		} else {
 			// Received INVITE request and no terminate request received in
 			// between => Transition to EARLY
-			stateTransition(State.INCOMING_RINGING);
+			stateTransitionSync(State.INCOMING_RINGING);
 
 			log.info("Incoming call signalled with callId:"
 					+ incomingInitiatingRequest.getServerTransaction()
@@ -318,8 +352,17 @@ public class SipCall extends CallBase {
 		}
 	}
 
+	public void incomingCall(final STransaction incomingTransaction) {
+		looperThread.post(new Runnable() {
+			@Override
+			public void run() {
+				incomingCallSync(incomingTransaction);
+			}
+		});
+	}
+
 	// Used by CInvite and SAck to inform when the call set up is completed
-	public void completedCall() {
+	private void completedCallSync() {
 		if (request2Terminate) {
 			// Call terminate request arrived between 200 OK response and ACK
 			// 1.- CANCEL request, either remote or local, arrived after 200 OK
@@ -330,13 +373,13 @@ public class SipCall extends CallBase {
 				// Terminate call not already terminated
 				// Use terminated variable as dialog state does not change quick
 				// enough
-				stateTransition(State.TERMINATED);
+				stateTransitionSync(State.TERMINATED);
 				try {
 					log.debug("Inmediatelly terminate an already stablished call");
 					new CBye(sipUA, this);
-					terminatedCall(Reason.LOCAL_HANGUP);
+					terminatedCallSync(Reason.LOCAL_HANGUP);
 				} catch (KurentoSipException e) {
-					callFailed(new KurentoException(
+					callFailedSync(new KurentoException(
 							"Unable to terminate CALL for dialog: "
 									+ dialog.getDialogId(), e));
 				}
@@ -345,7 +388,7 @@ public class SipCall extends CallBase {
 		}
 
 		// TODO Make sure the media stack is already created
-		stateTransition(State.CONFIRMED);
+		stateTransitionSync(State.CONFIRMED);
 		sipUA.getCallEstablishedHandler().onEstablished(sipEstablishedCall);
 
 		// Remove reference to the initiating transactions (might be in or out)
@@ -353,20 +396,32 @@ public class SipCall extends CallBase {
 		outgoingInitiatingRequest = null;
 	}
 
+	public void completedCall() {
+		looperThread.post(new Runnable() {
+			@Override
+			public void run() {
+				completedCallSync();
+			}
+		});
+	}
+
 	// Used by SCancel transaction to notify reception of CANCEL request
-	public void remoteCallCancel() throws KurentoSipException {
+	private void remoteCallCancelSync() {
 		log.info("Request call Cancel from remote peer");
 		request2Terminate = true;
 		if (State.INCOMING_RINGING.equals(state)) {
 			// Cancel received after SDP offer has been process
 			// Send now the response and before 200 OK response has been sent
 			// (accept)
-			stateTransition(State.TERMINATED);
-			incomingInitiatingRequest.sendResponse(Response.REQUEST_TERMINATED,
-					null);
-			terminatedCall(Reason.LOCAL_HANGUP);
-			// Remove reference to the initiating request
-			// incomingInitiatingRequest = null;
+			stateTransitionSync(State.TERMINATED);
+			try {
+				incomingInitiatingRequest.sendResponse(
+						Response.REQUEST_TERMINATED, null);
+			} catch (KurentoSipException e) {
+				log.error("Cannot send request terminated when cancel", e);
+			}
+
+			terminatedCallSync(Reason.REMOTE_HANGUP);
 		} else {
 			// Cancel received before the SDP has been processed. Wait
 			// incomingCall event before cancel can be performed
@@ -374,9 +429,18 @@ public class SipCall extends CallBase {
 		}
 	}
 
+	public void remoteCallCancel() {
+		looperThread.post(new Runnable() {
+			@Override
+			public void run() {
+				remoteCallCancelSync();
+			}
+		});
+	}
+
 	// Use by CInvite to notify when the SDP offer has been generated and
 	// request sent. This method is called when dialog state is EARLY
-	public void outgoingCall(CTransaction outgoingTransaction) {
+	private void outgoingCallSync(CTransaction outgoingTransaction) {
 		if (outgoingTransaction == null)
 			return;
 
@@ -384,9 +448,18 @@ public class SipCall extends CallBase {
 		this.dialog.setApplicationData(this);
 		this.outgoingInitiatingRequest = outgoingTransaction;
 
-		stateTransition(State.OUTGOING_RINGING);
+		stateTransitionSync(State.OUTGOING_RINGING);
 		if (request2Terminate) // Call has been canceled while building SDP
-			localCallCancel();
+			localCallCancelSync();
+	}
+
+	public void outgoingCall(final CTransaction outgoingTransaction) {
+		looperThread.post(new Runnable() {
+			@Override
+			public void run() {
+				outgoingCallSync(outgoingTransaction);
+			}
+		});
 	}
 
 	// ////////////////
@@ -412,28 +485,39 @@ public class SipCall extends CallBase {
 			return SipCall.this.getRemoteUri();
 		}
 
-		@Override
-		public void accept() throws KurentoException {
+		private void acceptSync() {
 			// Accept only if there are incoming transactions and INCOMING
 			// RINIGING
 			if (incomingInitiatingRequest == null
-					|| !State.INCOMING_RINGING.equals(state))
-				throw new KurentoException("There is not any incoming call");
+					|| !State.INCOMING_RINGING.equals(getStateTransitionSync()))
+				callFailedSync(new KurentoException(
+						"There is not any incoming call"));
 
 			log.debug("Accept call " + getCallInfo());
-			stateTransition(State.CONFIRMED);
+			stateTransitionSync(State.CONFIRMED);
 			try {
 				String localDescription = getLocalDescription();
-				if (localDescription == null)
-					callFailed(new KurentoException("Local description not set"));
-				else
+				if (localDescription == null) {
+					callFailedSync(new KurentoException(
+							"Local description not set"));
+				} else {
 					incomingInitiatingRequest.sendResponse(Response.OK,
 							localDescription.getBytes());
-				incomingInitiatingRequest = null;
+				}
 			} catch (KurentoSipException e) {
-				callFailed(new KurentoException("Unable to send SIP response",
-						e));
+				callFailedSync(new KurentoException(
+						"Unable to send SIP response", e));
 			}
+		}
+
+		@Override
+		public void accept() {
+			looperThread.post(new Runnable() {
+				@Override
+				public void run() {
+					acceptSync();
+				}
+			});
 		}
 
 		@Override
